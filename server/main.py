@@ -1,7 +1,9 @@
 from aiohttp import web
 # from server.routes import setup_routes
 from settings import config
-from routes import routes
+from routes.user import routes as user_routes
+from routes.forum import routes as forum_routes
+
 from collections import OrderedDict
 import asyncio
 import asyncpg
@@ -28,10 +30,8 @@ async def init_app():
     # Create a database connection pool
     app['pool'] = await asyncpg.create_pool(user='docker', password='docker',
                                  database='forum', host='127.0.0.1')
-    # Configure service routes
-    # app.router.add_route('GET', '/{power:\d+}', handle)
-    # app.router.add_route('GET', '/', handle)
-    app.router.add_routes(routes)
+    app.router.add_routes(user_routes)
+    app.router.add_routes(forum_routes)
     return app
 
 
