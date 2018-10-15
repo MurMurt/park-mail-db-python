@@ -3,8 +3,6 @@ class Forum:
         self.slug = slug
         self.title = title
         self.user = user
-        self.posts = 0
-        self.threads = 0
 
     def get_data(self):
         return self.__dict__
@@ -15,5 +13,6 @@ class Forum:
 
     @staticmethod
     def query_get_forum(slug):
-        return "SELECT slug, title, user_nick FROM forum " \
-        "WHERE slug = '{}';".format(slug)
+        return "SELECT f.slug, f.title, u.nickname as user FROM forum as f " \
+               "JOIN users u on f.user_nick = u.nickname " \
+               "WHERE slug = '{}';".format(slug)
