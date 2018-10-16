@@ -3,10 +3,13 @@ from aiohttp import web
 from settings import config
 from routes.user import routes as user_routes
 from routes.forum import routes as forum_routes
+from routes.thread import routes as thread_routes
 
 from collections import OrderedDict
 import asyncio
 import asyncpg
+import os, time
+# os.environ['TZ'] = 'Europe/London'
 
 
 async def handle(request):
@@ -32,6 +35,7 @@ async def init_app():
                                  database='forum', host='127.0.0.1')
     app.router.add_routes(user_routes)
     app.router.add_routes(forum_routes)
+    app.router.add_routes(thread_routes)
     return app
 
 

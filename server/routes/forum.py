@@ -14,6 +14,7 @@ async def handle_forum_create(request):
     pool = request.app['pool']
     async with pool.acquire() as connection:
         try:
+            # print('QUERY', forum.query_create_forum())
             await connection.fetch(forum.query_create_forum())
         except asyncpg.exceptions.UniqueViolationError as e:
             result = await connection.fetch(Forum.query_get_forum(forum.slug))
