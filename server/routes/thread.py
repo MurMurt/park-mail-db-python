@@ -1,10 +1,8 @@
 import asyncpg
-
 from aiohttp import web
-
 from models.forum import Forum
 from models.thread import Thread
-from datetime import datetime
+
 
 routes = web.RouteTableDef()
 
@@ -13,25 +11,39 @@ routes = web.RouteTableDef()
 async def handle_forum_create(request):
     data = await request.json()
     forum = request.match_info['slug']
-    thread = Thread(**data)
+    forum_slug = data.get('forum', False)
+    if not forum_slug:
+        thread = Thread(**data, forum=forum)
+    else:
+        thread = Thread(**data)
 
     pool = request.app['pool']
+    thread_id = None
     async with pool.acquire() as connection:
         try:
-            res = await connection.fetch(thread.query_create_thread())
-            id = (res[0]['id'])
+            result = await connection.fetch(thread.query_create_thread())
+            thread_id = result[0]['id']
+        except asyncpg.exceptions.UniqueViolationError:
+            async with pool.acquire() as connection2:
+                print("QUERY", Thread.query_get_thread_by_slug(data['slug']))
+                res = await connection2.fetch(Thread.query_get_thread_by_slug(data['slug']))
+                thread = dict(res[0])
+                print('THREAD', thread)
+                thread['created'] = thread['created'].isoformat()
+                return web.json_response(status=409, data=thread)
         except Exception as e:
-            print('ERROR', type(e), e)
+            # print('ERROR', type(e), "||")
+            return web.json_response(status=404, data={})
+        else:
+            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
+            thread = dict(res[0])
+            thread['created'] = thread['created'].isoformat()
+            if thread['slug'] == 'NULL':
+                thread.pop('slug')
 
-    data = thread.get_data()
-    if data['slug'] == 'NULL':
-        data.pop('slug')
-    else:
-        data['slug'] = data['slug'][1:-1]
-    if data['created'] == 'NULL':
-        data.pop('created')
-    data['id'] = id
-    return web.json_response(status=201, data=data)
+            return web.json_response(status=201, data=thread)
+
+
 
 
 @routes.get('/api/forum/{slug}/threads')
@@ -52,7 +64,6 @@ async def handle_get(request):
 
         data = list(map(dict, result))
         for item in data:
-            # print(item['created'])
             item['created'] = item['created'].isoformat()
 
     return web.json_response(status=200, data=data)

@@ -19,7 +19,7 @@ class Thread:
                    "RETURNING id;".format(**self.__dict__)
 
         return "INSERT INTO thread (slug, forum, author, title, message, created) " \
-               "VALUES ({slug}, '{forum}', '{author}', '{title}', '{message}', '{created}') " \
+               "VALUES ({slug}, (SELECT slug FROM forum WHERE slug = '{forum}'), '{author}', '{title}', '{message}', '{created}') " \
                "RETURNING id;".format(**self.__dict__)
 
     @staticmethod
@@ -39,8 +39,18 @@ class Thread:
         query += ';'
         return query
 
-        # "SELECT thread.id, slug, created, title, message, 0 AS votes, user_nick, forum_slug " \
-        # "FROM thread " \
-        # "WHERE forum_slug = '{slug}' " \
-        # "ORDER BY created DESC " \
-        # "LIMIT 10;"
+    @staticmethod
+    def query_get_thread_id(slug):
+        return "SELECT id, forum FROM thread WHERE slug = '{}'".format(slug)
+
+    @staticmethod
+    def query_get_thread_forum(id):
+        return "SELECT forum FROM thread WHERE id = {}".format(id)
+
+    @staticmethod
+    def query_get_thread_by_id(id):
+        return "SELECT * FROM thread WHERE id = {};".format(id)
+
+    @staticmethod
+    def query_get_thread_by_slug(slug):
+        return "SELECT * FROM thread WHERE slug = '{}' ;".format(slug)

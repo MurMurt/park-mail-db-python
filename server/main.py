@@ -4,6 +4,8 @@ from settings import config
 from routes.user import routes as user_routes
 from routes.forum import routes as forum_routes
 from routes.thread import routes as thread_routes
+from routes.post import routes as post_routes
+from routes.vote import routes as vote_routes
 
 from collections import OrderedDict
 import asyncio
@@ -36,6 +38,9 @@ async def init_app():
     app.router.add_routes(user_routes)
     app.router.add_routes(forum_routes)
     app.router.add_routes(thread_routes)
+    app.router.add_routes(post_routes)
+
+    app.router.add_routes(vote_routes)
     return app
 
 
