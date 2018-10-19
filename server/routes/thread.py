@@ -1,8 +1,7 @@
-import asyncpg
 from aiohttp import web
-from models.forum import Forum
-from models.post import Post
-from models.thread import Thread
+from server.models.forum import Forum
+from server.models.post import Post
+from server.models.thread import Thread
 
 routes = web.RouteTableDef()
 
@@ -23,17 +22,16 @@ async def handle_forum_create(request):
         try:
             result = await connection.fetch(thread.query_create_thread())
             thread_id = result[0]['id']
-        except asyncpg.exceptions.UniqueViolationError:
+        except Exception as e:
             async with pool.acquire() as connection2:
                 # print("QUERY", Thread.query_get_thread_by_slug(data['slug']))
                 res = await connection2.fetch(Thread.query_get_thread_by_slug(data['slug']))
+                if len(res) == 0:
+                    return web.json_response(status=404, data={})
                 thread = dict(res[0])
-                # print('THREAD', thread)
                 thread['created'] = thread['created'].isoformat()
                 return web.json_response(status=409, data=thread)
-        except Exception as e:
-            # print('ERROR', type(e), "||")
-            return web.json_response(status=404, data={})
+
         else:
             res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
             thread = dict(res[0])
@@ -133,8 +131,8 @@ async def handle_get_posts(request):
 async def handle_thread_update(request):
     data = await request.json()
     thread_slug_or_id = request.match_info['slug_or_id']
-    message = data.get('message')
-    title = data.get('title')
+    message = data.get('message', False)
+    title = data.get('title', False)
     pool = request.app['pool']
     thread_id = thread_slug_or_id
 
@@ -149,14 +147,28 @@ async def handle_thread_update(request):
         thread_id = thread_slug_or_id
 
     async with pool.acquire() as connection:
+        if not title and not message:
+            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
+            thread = dict(res[0])
+
+            thread['created'] = thread['created'].isoformat()
+            # thread['created'] = str(thread['created'])
+            if thread['slug'] == 'NULL':
+                thread.pop('slug')
+
+            return web.json_response(status=200, data=thread)
+
         try:
             await connection.fetch(Thread.query_update_thread(thread_id, message, title))
 
         except Exception as e:
-            print('ERROR', type(e), e)
+            # print('ERROR', type(e), e)
             return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
         else:
             res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
+            if len(res) == 0:
+                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+
             thread = dict(res[0])
 
             thread['created'] = thread['created'].isoformat()

@@ -1,5 +1,5 @@
 from aiohttp import web
-from models.user import User
+from server.models.user import User
 
 routes = web.RouteTableDef()
 

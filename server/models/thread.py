@@ -15,7 +15,7 @@ class Thread:
     def query_create_thread(self):
         if self.created == 'NULL':
             return "INSERT INTO thread (slug, forum, author, title, message) " \
-                   "VALUES ({slug}, '{forum}', '{author}', '{title}', '{message}') " \
+                   "VALUES ({slug}, (SELECT slug FROM forum WHERE slug = '{forum}'), '{author}', '{title}', '{message}') " \
                    "RETURNING id;".format(**self.__dict__)
 
         return "INSERT INTO thread (slug, forum, author, title, message, created) " \
@@ -57,5 +57,11 @@ class Thread:
 
     @staticmethod
     def query_update_thread(id, message, title):
+        if not message:
+            return "UPDATE thread SET title = '{title}' " \
+                   "WHERE id = '{id}' ;".format(id=id, title=title)
+        if not title:
+            return "UPDATE thread SET message = '{message}'" \
+                   "WHERE id = '{id}' ;".format(id=id, message=message)
         return "UPDATE thread SET message = '{message}', title = '{title}' " \
                "WHERE id = '{id}' ;".format(id=id, message=message, title=title)

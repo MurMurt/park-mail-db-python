@@ -9,4 +9,5 @@ class Vote:
                "VALUES ({thread_id}, '{nickname}', {voice}) " \
                "ON CONFLICT ON CONSTRAINT unique_votes " \
                "DO UPDATE SET voice = {voice} " \
-               "WHERE vote.thread_id = {thread_id} AND vote.nickname = '{nickname}';".format(**self.__dict__)
+               "WHERE vote.thread_id = (SELECT id FROM thread " \
+               "WHERE id = {thread_id}) AND vote.nickname = '{nickname}';".format(**self.__dict__)

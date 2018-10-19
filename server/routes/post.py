@@ -1,9 +1,7 @@
+import asyncpg
 from aiohttp import web
-
-from models.forum import Forum
-from models.post import Post
-from models.thread import Thread
-
+from server.models.post import Post
+from server.models.thread import Thread
 
 routes = web.RouteTableDef()
 
@@ -12,8 +10,8 @@ routes = web.RouteTableDef()
 async def handle_posts_create(request):
     data = await request.json()
 
-    if len(data) == 0:
-        return web.json_response(status=201, data=[])
+    # if len(data) == 0:
+    #     return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
 
     pool = request.app['pool']
     thread_slug_or_id = request.match_info['slug']
@@ -35,11 +33,16 @@ async def handle_posts_create(request):
 
     async with pool.acquire() as connection:
         # print('QUERY', Post.query_create_post(thread_id, data))
+        if len(data) == 0:
+            return web.json_response(status=201, data=[])
         try:
             # print('QUERY ', Post.query_create_post(thread_id, data))
             res = await connection.fetch(Post.query_create_post(thread_id, data))
+        except asyncpg.exceptions.NotNullViolationError:
+            return web.json_response(status=409, data={"message": "Can't find user with id #42\n"})
         except Exception as e:
-            print('ERROR post', type(e), e)
+            # print('ERROR post', type(e), e)
+            return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
         else:
             # print(res)
             for i in range(len(res)):
@@ -49,6 +52,123 @@ async def handle_posts_create(request):
                 data[i]['thread'] = int(thread_id)
 
             return web.json_response(status=201, data=data)
-    return web.json_response(status=201, data=[])
+    # return web.json_response(status=201, data=[])
 
 
+@routes.get('/api/post/{id}/details', expect_handler=web.Request.json)
+async def handle_post_details(request):
+    id = request.match_info['id']
+    pool = request.app['pool']
+    related = request.rel_url.query.get('related', False)
+
+    async with pool.acquire() as connection:
+        # print(Post.query_get_post_details(id))
+        result = await connection.fetch(Post.query_get_post_details(id))
+        if len(result) == 0:
+            return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
+
+        post = dict(result[0])
+        result = None
+
+        result = {
+            "author": post['nickname'],
+            "created": post['post_created'].astimezone().isoformat(),
+            "forum": post['forum'],
+            "id": post['post_id'],
+            "message": post['post_message'],
+            "thread": post['thread_id'],
+            "isEdited": post['is_edited'],
+        }
+        # print('RES', post)
+        if not related:
+            return web.json_response(status=200, data={'post': result})
+        else:
+            user = False
+            thread = False
+            forum = False
+            # print('RELLLL', type(related))
+            related = related.split(',')
+            if 'user' in related:
+                user = {
+                    "about": post['about'],
+                    "email": post['email'],
+                    "fullname": post['fullname'],
+                    "nickname": post['nickname'],
+                }
+            if 'thread' in related:
+                thread = {
+                    "author": post['t_author'],
+                    "created": post['t_created'].astimezone().isoformat(),
+                    "id": post['t_id'],
+                    "message": post['t_message'],
+                    "slug": post['t_slug'],
+                    "forum": post['forum'],
+                    "title": post['t_title'],
+                }
+            if 'forum' in related:
+                forum = {
+                    "posts": post['posts'],
+                    "slug": post['f_slug'],
+                    "threads": post['threads'],
+                    "title": post['f_title'],
+                    "user": post['f_nick'],
+                }
+
+            data = {'post': result}
+            if user:
+                data['author'] = user
+            if thread:
+                data['thread'] = thread
+            if forum:
+                data['forum'] = forum
+
+            return web.json_response(status=200, data=data)
+
+
+
+@routes.post('/api/post/{id}/details', expect_handler=web.Request.json)
+async def handle_posts_create(request):
+    id = request.match_info['id']
+    data = await request.json()
+    message = data.get('message', False)
+
+    pool = request.app['pool']
+    async with pool.acquire() as connection:
+        try:
+            # print(Post.query_get_post_details(id))
+            if message:
+                result = await connection.fetch("SELECT message FROM post WHERE id = {id}".format(id=id))
+                if len(result) != 0 and dict(result[0])['message'] != message:
+
+                    result = await connection.fetch("UPDATE post SET message = '{message}', is_edited = TRUE "
+                                            "WHERE id = {id}".format(message=message, id=id))
+        except Exception as e:
+            # print('ERROR', type(e), e)
+            return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
+        else:
+            async with pool.acquire() as connection:
+                # print(Post.query_get_post_details(id))
+                result = await connection.fetch(Post.query_get_post_details(id))
+                if len(result) == 0:
+                    return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
+
+                post = dict(result[0])
+                result = None
+                result = {
+                    "author": post['nickname'],
+                    "created": post['post_created'].astimezone().isoformat(),
+                    "forum": post['forum'],
+                    "id": post['post_id'],
+                    "message": post['post_message'],
+                    "thread": post['thread_id'],
+                }
+                # print('RES', post)
+                return web.json_response(status=200, data={
+                    "author": post['nickname'],
+                    "created": post['post_created'].astimezone().isoformat(),
+                    "forum": post['forum'],
+                    "id": post['post_id'],
+                    "message": post['post_message'],
+                    "thread": post['thread_id'],
+                    "isEdited": post['is_edited'],
+                })

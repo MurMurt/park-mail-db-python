@@ -5,8 +5,6 @@ class Post:
     @staticmethod
     def query_create_post(thread_id, params):
         query = ''
-        # if type(params) == list:
-        #     has_parent = params[0].get(['parent'], False)
         has_parent = params[0].get('parent', False)
 
         if False:
@@ -39,7 +37,9 @@ class Post:
                 post_values_query = ''
                 post_values_query += "(nextval('post_id_seq'), '{author}', '{message}', {thread_id}, {parent_id} {path}), ".format(
                     author=post['author'], message=post['message'],
-                    thread_id=thread_id, parent_id='NULL' if not has_parent else has_parent,
+                    thread_id=thread_id if not has_parent else "(SELECT thread_id FROM post WHERE id = {has_parent}  "
+                         "AND thread_id = {thread_id})".format(has_parent=has_parent, thread_id=thread_id),
+                    parent_id='NULL' if not has_parent else has_parent,
                     path="{}".format(
                         ", NULL" if not has_parent else ", (SELECT path FROM post WHERE id = {parent} )".format(
                             parent=has_parent)))
@@ -138,4 +138,20 @@ class Post:
 
 
 
+        return query
+
+
+    @staticmethod
+    def query_get_post_details(post_id):
+        query = '''SELECT u.about, u.email, u.fullname, u.nickname,
+					(SELECT count(*) FROM post JOIN thread ON post.thread_id = thread.id WHERE thread.id = t.id) as posts,
+                	f.slug,
+                	(SELECT count(*) FROM thread WHERE thread.id = t.id) as threads, f.title as f_title, f.user_nick as f_nick,
+					p.author, p.created as post_created , f.slug as f_slug, p.id as post_id, p.is_edited, p.message as post_message, p.parent_id, p.thread_id,
+					t.author as t_author, t.created as t_created, f.slug as forum, t.id, t.message as t_message, t.slug as t_slug, t.title as t_title, t.id as t_id, t.votes  as votes
+				FROM post p
+					JOIN users u on p.author = u.nickname
+					JOIN thread t on p.thread_id = t.id
+					JOIN forum f on t.forum = f.slug
+				WHERE p.id = {}'''.format(post_id)
         return query

@@ -1,8 +1,6 @@
-import asyncpg
 from aiohttp import web
-from models.forum import Forum
-from models.thread import Thread
-from models.vote import Vote
+from server.models.thread import Thread
+from server.models.vote import Vote
 
 
 routes = web.RouteTableDef()
@@ -28,8 +26,8 @@ async def handle_posts_create(request):
         try:
             await connection.fetch(vote.query_vote_create())
         except Exception as e:
-            print('ERROR', type(e), e)
-            return web.json_response(status=400, data={})
+            # print('ERROR', type(e), e)
+            return web.json_response(status=404, data={ "message": "Can't find thread by id "})
         else:
             async with pool.acquire() as connection:
                 res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
