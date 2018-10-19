@@ -1,5 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS citext;
 
+set timezone= 'Europe/Moscow';
+
 DROP TABLE IF EXISTS post;
 DROP TABLE IF EXISTS vote;
 DROP TABLE IF EXISTS thread;

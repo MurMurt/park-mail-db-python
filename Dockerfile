@@ -7,6 +7,14 @@ RUN echo "update start"
 RUN apt-get -y update
 RUN echo "update end"
 
+#RUN export TZ='Europe/Moscow'
+ENV TZ 'Europe/Moscow'
+    RUN echo $TZ > /etc/timezone && \
+    apt-get update && apt-get install -y tzdata && \
+    rm /etc/localtime && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata && \
+    apt-get clean
 
 # Установка Python3
 RUN apt-get install -y python3
@@ -41,8 +49,11 @@ COPY DB_API/db/createDB.sql ddl.sql
 # then create a database `docker` owned by the ``docker`` role.
 RUN /etc/init.d/postgresql start &&\
     psql --command "CREATE USER docker WITH SUPERUSER PASSWORD 'docker';" &&\
+    psql --command "SHOW timezone;" &&\
+    psql --variable=timezone=Eroupe/Moscow &&\
     createdb -O docker docker &&\
     psql -d docker -f ddl.sql &&\
+    psql --command "SHOW timezone;" &&\
     /etc/init.d/postgresql stop
 
 # Adjust PostgreSQL configuration so that remote connections to the
