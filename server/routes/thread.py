@@ -1,8 +1,8 @@
 import asyncpg
 from aiohttp import web
 from models.forum import Forum
+from models.post import Post
 from models.thread import Thread
-
 
 routes = web.RouteTableDef()
 
@@ -25,10 +25,10 @@ async def handle_forum_create(request):
             thread_id = result[0]['id']
         except asyncpg.exceptions.UniqueViolationError:
             async with pool.acquire() as connection2:
-                print("QUERY", Thread.query_get_thread_by_slug(data['slug']))
+                # print("QUERY", Thread.query_get_thread_by_slug(data['slug']))
                 res = await connection2.fetch(Thread.query_get_thread_by_slug(data['slug']))
                 thread = dict(res[0])
-                print('THREAD', thread)
+                # print('THREAD', thread)
                 thread['created'] = thread['created'].isoformat()
                 return web.json_response(status=409, data=thread)
         except Exception as e:
@@ -37,13 +37,13 @@ async def handle_forum_create(request):
         else:
             res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
             thread = dict(res[0])
+
             thread['created'] = thread['created'].isoformat()
+            # thread['created'] = str(thread['created'])
             if thread['slug'] == 'NULL':
                 thread.pop('slug')
 
             return web.json_response(status=201, data=thread)
-
-
 
 
 @routes.get('/api/forum/{slug}/threads')
@@ -67,3 +67,63 @@ async def handle_get(request):
             item['created'] = item['created'].isoformat()
 
     return web.json_response(status=200, data=data)
+
+
+@routes.get('/api/thread/{slug_or_id}/details')
+async def handle_get_details(request):
+    thread_slug_or_id = request.match_info['slug_or_id']
+    pool = request.app['pool']
+
+    if not thread_slug_or_id.isdigit():
+        async with pool.acquire() as connection:
+            res = await connection.fetch(Thread.query_get_thread_by_slug(thread_slug_or_id))
+            if len(res) == 0:
+                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+            data = dict(res[0])
+            data['created'] = data['created'].isoformat()
+            return web.json_response(status=200, data=data)
+    else:
+        thread_id = thread_slug_or_id
+        async with pool.acquire() as connection:
+            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
+            if len(res) == 0:
+                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+            data = dict(res[0])
+            data['created'] = data['created'].isoformat()
+            return web.json_response(status=200, data=data)
+
+
+@routes.get('/api/thread/{slug_or_id}/posts')
+async def handle_get_posts(request):
+    thread_slug_or_id = request.match_info['slug_or_id']
+    limit = request.rel_url.query.get('limit', False)
+    desc = request.rel_url.query.get('desc', False)
+    since = request.rel_url.query.get('since', False)
+    sort = request.rel_url.query.get('sort', 'flat')
+
+    pool = request.app['pool']
+    thread_id = thread_slug_or_id
+
+    if not thread_slug_or_id.isdigit():
+        async with pool.acquire() as connection:
+            res = await connection.fetch(Thread.query_get_thread_id(thread_slug_or_id))
+            if len(res) == 0:
+                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+            data = dict(res[0])
+            thread_id = data['id']
+    else:
+        thread_id = thread_slug_or_id
+        async with pool.acquire() as connection:
+            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
+            if len(res) == 0:
+                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+    async with pool.acquire() as connection:
+        print('QUERY ', Post.query_get_posts(thread_id, since, sort, desc, limit))
+        res = await connection.fetch(
+            Post.query_get_posts(thread_id, since, sort, desc, limit))
+        if len(res) == 0:
+            return web.json_response(status=200, data=[])
+        data = list(map(dict, list(res)))
+        for item in data:
+            item['created'] = item['created'].isoformat()
+        return web.json_response(status=200, data=data)

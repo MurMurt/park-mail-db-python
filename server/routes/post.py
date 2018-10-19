@@ -3,7 +3,7 @@ from aiohttp import web
 from models.forum import Forum
 from models.post import Post
 from models.thread import Thread
-from datetime import datetime
+
 
 routes = web.RouteTableDef()
 
@@ -34,18 +34,21 @@ async def handle_posts_create(request):
             forum = res[0]['forum']
 
     async with pool.acquire() as connection:
-        print('QUERY', Post.query_create_post(thread_id, data))
+        # print('QUERY', Post.query_create_post(thread_id, data))
         try:
+            print('QUERY ', Post.query_create_post(thread_id, data))
             res = await connection.fetch(Post.query_create_post(thread_id, data))
         except Exception as e:
-            print('ERROR', type(e), e)
+            print('ERROR post', type(e), e)
         else:
-            print(res)
+            # print(res)
             for i in range(len(res)):
-                data[i]['created'] = res[i]['created'].isoformat()
+                data[i]['created'] = str(res[i]['created'].astimezone().isoformat())
                 data[i]['id'] = res[i]['id']
                 data[i]['forum'] = forum
                 data[i]['thread'] = int(thread_id)
 
             return web.json_response(status=201, data=data)
     return web.json_response(status=201, data=[])
+
+
