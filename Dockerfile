@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:16.04
 
 MAINTAINER Ilnur I. Gataullin
 
@@ -7,16 +7,34 @@ RUN echo "update start"
 RUN apt-get -y update
 RUN echo "update end"
 
+
+# Установка Python3
+RUN apt-get install -y python3
+RUN apt-get install -y python3-pip
+RUN pip3 install --upgrade pip
+RUN pip3 install aiohttp
+RUN pip3 install asyncpg
+RUN pip3 install pyyaml
+
 #
 # Установка postgresql
 #
+RUN apt-get -y update
+RUN apt-get -y install wget
+RUN echo 'deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main' >> /etc/apt/sources.list.d/pgdg.list
+RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+RUN apt-get -y update
 ENV PGVER 10
-RUN apt-get install -y postgresql-$PGVER
+RUN apt-get -y install postgresql-$PGVER
+
+
+
 
 # Run the rest of the commands as the ``postgres`` user created by the ``postgres-$PGVER`` package when it was ``apt-get installed``
 USER postgres
 
-COPY db/createDB.sql ddl.sql
+COPY DB_API/db/createDB.sql ddl.sql
+
 
 
 # Create a PostgreSQL role named ``docker`` with ``docker`` as the password and
@@ -43,6 +61,10 @@ VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 # Back to the root user
 USER root
 
+# Копируем исходный код в Docker-контейнер
+ENV WORK /park-mail-db-python/
+ADD  DB_API/  $WORK/DB_API/
+
 
 # Объявлем порт сервера
 EXPOSE 5000
@@ -50,5 +72,6 @@ EXPOSE 5000
 #
 # Запускаем PostgreSQL и сервер
 #
-CMD service postgresql start
-#&& hello-server --scheme=http --port=5000 --host=0.0.0.0 --database=postgres://docker:docker@localhost/docker
+CMD service postgresql start &&\
+    python3 DB_API/server/main.py
+

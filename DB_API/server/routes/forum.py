@@ -1,6 +1,6 @@
 import asyncpg
 from aiohttp import web
-from server.models.forum import Forum
+from models.forum import Forum
 
 routes = web.RouteTableDef()
 

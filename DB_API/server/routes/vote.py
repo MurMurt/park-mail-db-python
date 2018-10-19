@@ -1,6 +1,6 @@
 from aiohttp import web
-from server.models.thread import Thread
-from server.models.vote import Vote
+from models.thread import Thread
+from models.vote import Vote
 
 
 routes = web.RouteTableDef()

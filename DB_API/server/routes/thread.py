@@ -1,7 +1,7 @@
 from aiohttp import web
-from server.models.forum import Forum
-from server.models.post import Post
-from server.models.thread import Thread
+from models.forum import Forum
+from models.post import Post
+from models.thread import Thread
 
 routes = web.RouteTableDef()
 
