@@ -46,7 +46,7 @@ async def handle_posts_create(request):
         else:
             # print(res)
             for i in range(len(res)):
-                data[i]['created'] = str(res[i]['created'].astimezone().isoformat())
+                data[i]['created'] = res[i]['created'].astimezone().isoformat()
                 data[i]['id'] = res[i]['id']
                 data[i]['forum'] = forum
                 data[i]['thread'] = int(thread_id)

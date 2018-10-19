@@ -33,7 +33,7 @@ async def handle_posts_create(request):
                 res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
                 # print('RESSS', dict(res[0]))
                 data = dict(res[0])
-                data['created'] = data['created'].isoformat()
+                data['created'] = data['created'].astimezone().isoformat()
                 # data['id'] = res[i]['id']
                 # data['forum'] = forum
                 # data['thread'] = int(thread_id)

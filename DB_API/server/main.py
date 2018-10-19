@@ -17,7 +17,7 @@ async def init_app():
     app = web.Application()
     # Create a database connection pool
     app['pool'] = await asyncpg.create_pool(user='docker', password='docker',
-                                 database='forum', host='127.0.0.1')
+                                 database='docker', host='127.0.0.1')
     app.router.add_routes(user_routes)
     app.router.add_routes(forum_routes)
     app.router.add_routes(thread_routes)

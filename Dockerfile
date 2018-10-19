@@ -73,5 +73,6 @@ EXPOSE 5000
 # Запускаем PostgreSQL и сервер
 #
 CMD service postgresql start &&\
-    python3 DB_API/server/main.py
+    cd $WORK/DB_API &&\
+    python3 server/main.py
 

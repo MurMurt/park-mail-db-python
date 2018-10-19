@@ -29,14 +29,14 @@ async def handle_forum_create(request):
                 if len(res) == 0:
                     return web.json_response(status=404, data={})
                 thread = dict(res[0])
-                thread['created'] = thread['created'].isoformat()
+                thread['created'] = thread['created'].astimezone().isoformat()
                 return web.json_response(status=409, data=thread)
 
         else:
             res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
             thread = dict(res[0])
 
-            thread['created'] = thread['created'].isoformat()
+            thread['created'] = thread['created'].astimezone().isoformat()
             # thread['created'] = str(thread['created'])
             if thread['slug'] == 'NULL':
                 thread.pop('slug')
@@ -62,7 +62,7 @@ async def handle_get(request):
 
         data = list(map(dict, result))
         for item in data:
-            item['created'] = item['created'].isoformat()
+            item['created'] = item['created'].astimezone().isoformat()
 
     return web.json_response(status=200, data=data)
 
@@ -78,7 +78,7 @@ async def handle_get_details(request):
             if len(res) == 0:
                 return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
             data = dict(res[0])
-            data['created'] = data['created'].isoformat()
+            data['created'] = data['created'].astimezone().isoformat()
             return web.json_response(status=200, data=data)
     else:
         thread_id = thread_slug_or_id
@@ -87,7 +87,7 @@ async def handle_get_details(request):
             if len(res) == 0:
                 return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
             data = dict(res[0])
-            data['created'] = data['created'].isoformat()
+            data['created'] = data['created'].astimezone().isoformat()
             return web.json_response(status=200, data=data)
 
 
@@ -123,7 +123,7 @@ async def handle_get_posts(request):
             return web.json_response(status=200, data=[])
         data = list(map(dict, list(res)))
         for item in data:
-            item['created'] = item['created'].isoformat()
+            item['created'] = item['created'].astimezone().isoformat()
         return web.json_response(status=200, data=data)
 
 
@@ -151,7 +151,7 @@ async def handle_thread_update(request):
             res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
             thread = dict(res[0])
 
-            thread['created'] = thread['created'].isoformat()
+            thread['created'] = thread['created'].astimezone().isoformat()
             # thread['created'] = str(thread['created'])
             if thread['slug'] == 'NULL':
                 thread.pop('slug')
@@ -171,7 +171,7 @@ async def handle_thread_update(request):
 
             thread = dict(res[0])
 
-            thread['created'] = thread['created'].isoformat()
+            thread['created'] = thread['created'].astimezone().isoformat()
             # thread['created'] = str(thread['created'])
             if thread['slug'] == 'NULL':
                 thread.pop('slug')
