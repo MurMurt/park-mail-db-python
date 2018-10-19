@@ -8,10 +8,7 @@ class Post:
         # if type(params) == list:
         #     has_parent = params[0].get(['parent'], False)
         has_parent = params[0].get('parent', False)
-        # created = params[0].get('created', False)
-        # print('TYPE', type(params[0]))
-        print('PARENT ', has_parent)
-        # if has_parent and has_parent != 0:
+
         if False:
             query = "INSERT INTO post (author, message, thread_id, path, parent_id) VALUES "
             for post in params:

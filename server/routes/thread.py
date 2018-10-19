@@ -118,7 +118,7 @@ async def handle_get_posts(request):
             if len(res) == 0:
                 return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
     async with pool.acquire() as connection:
-        print('QUERY ', Post.query_get_posts(thread_id, since, sort, desc, limit))
+        # print('QUERY ', Post.query_get_posts(thread_id, since, sort, desc, limit))
         res = await connection.fetch(
             Post.query_get_posts(thread_id, since, sort, desc, limit))
         if len(res) == 0:
@@ -127,3 +127,41 @@ async def handle_get_posts(request):
         for item in data:
             item['created'] = item['created'].isoformat()
         return web.json_response(status=200, data=data)
+
+
+@routes.post('/api/thread/{slug_or_id}/details', expect_handler=web.Request.json)
+async def handle_thread_update(request):
+    data = await request.json()
+    thread_slug_or_id = request.match_info['slug_or_id']
+    message = data.get('message')
+    title = data.get('title')
+    pool = request.app['pool']
+    thread_id = thread_slug_or_id
+
+    if not thread_slug_or_id.isdigit():
+        async with pool.acquire() as connection:
+            res = await connection.fetch(Thread.query_get_thread_id(thread_slug_or_id))
+            if len(res) == 0:
+                return web.json_response(status=404, data={"message": "Can't find user with id #41\n"})
+            data = dict(res[0])
+            thread_id = data['id']
+    else:
+        thread_id = thread_slug_or_id
+
+    async with pool.acquire() as connection:
+        try:
+            await connection.fetch(Thread.query_update_thread(thread_id, message, title))
+
+        except Exception as e:
+            print('ERROR', type(e), e)
+            return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+        else:
+            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
+            thread = dict(res[0])
+
+            thread['created'] = thread['created'].isoformat()
+            # thread['created'] = str(thread['created'])
+            if thread['slug'] == 'NULL':
+                thread.pop('slug')
+
+            return web.json_response(status=200, data=thread)

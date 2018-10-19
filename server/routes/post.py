@@ -36,7 +36,7 @@ async def handle_posts_create(request):
     async with pool.acquire() as connection:
         # print('QUERY', Post.query_create_post(thread_id, data))
         try:
-            print('QUERY ', Post.query_create_post(thread_id, data))
+            # print('QUERY ', Post.query_create_post(thread_id, data))
             res = await connection.fetch(Post.query_create_post(thread_id, data))
         except Exception as e:
             print('ERROR post', type(e), e)

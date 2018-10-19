@@ -54,3 +54,8 @@ class Thread:
     @staticmethod
     def query_get_thread_by_slug(slug):
         return "SELECT * FROM thread WHERE slug = '{}' ;".format(slug)
+
+    @staticmethod
+    def query_update_thread(id, message, title):
+        return "UPDATE thread SET message = '{message}', title = '{title}' " \
+               "WHERE id = '{id}' ;".format(id=id, message=message, title=title)

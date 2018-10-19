@@ -38,3 +38,18 @@ async def handle_get(request):
             return web.json_response(status=404, data={"message": "Can't find user by nickname " + slug})
         forum = dict(result[0])
         return web.json_response(status=200, data=forum)
+
+@routes.get('/api/forum/{slug}/users')
+async def handle_get(request):
+    slug = request.match_info['slug']
+    pool = request.app['pool']
+    limit = request.rel_url.query.get('limit', False)
+    desc = request.rel_url.query.get('desc', False)
+    since = request.rel_url.query.get('since', False)
+    async with pool.acquire() as connection:
+        print(Forum.query_get_users(slug, limit=limit, desc=desc, since=since))
+        result = await connection.fetch(Forum.query_get_users(slug, limit=limit, desc=desc, since=since))
+        if len(result) == 0:
+            return web.json_response(status=200, data=[])
+        users = list(map(dict, list(result)))
+        return web.json_response(status=200, data=users)
