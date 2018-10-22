@@ -4,50 +4,25 @@ class Post:
 
     @staticmethod
     def query_create_post(thread_id, params):
-        query = ''
-        has_parent = params[0].get('parent', False)
+        query = "INSERT INTO post (author, message, thread_id, parent_id, path) VALUES "
+        for post in params:
+            parent = post.get('parent', False)
+            post_values_query = ''
+            post_values_query += "('{author}', '{message}', ".format(author=post['author'],
+                                                                     message=post['message'])
+            if parent:
+                post_values_query += "(SELECT thread_id FROM post WHERE id = {parent} AND " \
+                                     "thread_id = {thread_id}), {parent}, " \
+                                     "(SELECT path FROM post" \
+                                     " WHERE id = {parent} ) ), ".format(parent=parent, thread_id=thread_id)
+            else:
+                post_values_query += "{}, NULL, NULL ), ".format(thread_id)
 
-        if False:
-            query = "INSERT INTO post (author, message, thread_id, path, parent_id) VALUES "
-            for post in params:
-                post_values_query = ''
-                if created:
-                    post_values_query = "('{author}', '{message}', " \
-                                        "(SELECT thread_id FROM post WHERE id = {parent} AND thread_id = {thread_id})," \
-                                        "(SELECT path || ARRAY[{parent}] FROM post WHERE id = {parent})," \
-                                        " {parent}, '{created}', ), ".format(**post, thread_id=thread_id)
+            query += post_values_query
 
-                else:
-                    post_values_query += "('{author}', '{message}', " \
-                                         "(SELECT thread_id FROM post WHERE id = {parent} AND thread_id = {thread_id})," \
-                                         "(SELECT path || ARRAY[{parent}] FROM post WHERE id = {parent})," \
-                                         " {parent}), ".format(**post, thread_id=thread_id)
-
-                query += post_values_query
-
-            query = query[:-2] + " RETURNING id, created, thread_id"
-
-
-        else:
-
-            query = "INSERT INTO post  VALUES "
-
-            for post in params:
-                has_parent = post.get('parent', False)
-                post_values_query = ''
-                post_values_query += "(nextval('post_id_seq'), '{author}', '{message}', {thread_id}, {parent_id} {path}), ".format(
-                    author=post['author'], message=post['message'],
-                    thread_id=thread_id if not has_parent else "(SELECT thread_id FROM post WHERE id = {has_parent}  "
-                         "AND thread_id = {thread_id})".format(has_parent=has_parent, thread_id=thread_id),
-                    parent_id='NULL' if not has_parent else has_parent,
-                    path="{}".format(
-                        ", NULL" if not has_parent else ", (SELECT path FROM post WHERE id = {parent} )".format(
-                            parent=has_parent)))
-                query += post_values_query
-
-            query = query[:-2] + " RETURNING id, created, thread_id"
-
+        query = query[:-2] + " RETURNING id, created, thread_id"
         return query
+
 
     @staticmethod
     def query_get_posts(thread_id, since, sort, decs, limit):
@@ -93,10 +68,8 @@ class Post:
                 query += "WHERE path < (SELECT path from (SELECT id, path from post) as tt WHERE tt.id = {since}) ".format(
                     since=since)
             elif since and decs != 'true':
-                query += "WHERE path > (SELECT path from (SELECT id, path from post) as tt WHERE tt.id = {since}) ".format(since=since)
-
-
-
+                query += "WHERE path > (SELECT path from (SELECT id, path from post) as tt WHERE tt.id = {since}) ".format(
+                    since=since)
 
             if limit:
                 query += " LIMIT {}".format(limit)
@@ -122,9 +95,11 @@ class Post:
                          " FROM post " \
                          "WHERE parent_id = id AND thread_id = {thread_id}) as I" \
                          " WHERE paths [ 1 ] {comparator} (SELECT CASE WHEN path NOTNULL THEN path [ 1 ] ELSE id END as path " \
-                         "from post WHERE id = {since}) ".format(since=since, thread_id=thread_id, comparator='<' if decs == 'true' else '>')
+                         "from post WHERE id = {since}) ".format(since=since, thread_id=thread_id,
+                                                                 comparator='<' if decs == 'true' else '>')
             else:
-                query += " join (SELECT * FROM post WHERE parent_id = id AND thread_id = {thread_id} ".format(thread_id=thread_id)
+                query += " join (SELECT * FROM post WHERE parent_id = id AND thread_id = {thread_id} ".format(
+                    thread_id=thread_id)
             if limit and decs == 'true':
                 query += " ORDER BY id desc LIMIT {}".format(limit)
             elif limit and decs != 'true':
@@ -136,22 +111,20 @@ class Post:
             else:
                 query += "ORDER BY row_number() over (order by T.path [1] , T.path)"
 
-
-
         return query
 
 
     @staticmethod
     def query_get_post_details(post_id):
         query = '''SELECT u.about, u.email, u.fullname, u.nickname,
-					(SELECT count(*) FROM post JOIN thread ON post.thread_id = thread.id WHERE thread.id = t.id) as posts,
-                	f.slug,
-                	(SELECT count(*) FROM thread WHERE thread.id = t.id) as threads, f.title as f_title, f.user_nick as f_nick,
-					p.author, p.created as post_created , f.slug as f_slug, p.id as post_id, p.is_edited, p.message as post_message, p.parent_id, p.thread_id,
-					t.author as t_author, t.created as t_created, f.slug as forum, t.id, t.message as t_message, t.slug as t_slug, t.title as t_title, t.id as t_id, t.votes  as votes
-				FROM post p
-					JOIN users u on p.author = u.nickname
-					JOIN thread t on p.thread_id = t.id
-					JOIN forum f on t.forum = f.slug
-				WHERE p.id = {}'''.format(post_id)
+                        (SELECT count(*) FROM post JOIN thread ON post.thread_id = thread.id WHERE thread.id = t.id) as posts,
+                        f.slug,
+                        (SELECT count(*) FROM thread WHERE thread.id = t.id) as threads, f.title as f_title, f.user_nick as f_nick,
+                        p.author, p.created as post_created , f.slug as f_slug, p.id as post_id, p.is_edited, p.message as post_message, p.parent_id, p.thread_id,
+                        t.author as t_author, t.created as t_created, f.slug as forum, t.id, t.message as t_message, t.slug as t_slug, t.title as t_title, t.id as t_id, t.votes  as votes
+                    FROM post p
+                        JOIN users u on p.author = u.nickname
+                        JOIN thread t on p.thread_id = t.id
+                        JOIN forum f on t.forum = f.slug
+                    WHERE p.id = {}'''.format(post_id)
         return query

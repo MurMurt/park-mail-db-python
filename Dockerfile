@@ -23,6 +23,7 @@ RUN pip3 install --upgrade pip
 RUN pip3 install aiohttp
 RUN pip3 install asyncpg
 RUN pip3 install pyyaml
+RUN pip3 install cchardet
 
 #
 # Установка postgresql
@@ -49,11 +50,9 @@ COPY DB_API/db/createDB.sql ddl.sql
 # then create a database `docker` owned by the ``docker`` role.
 RUN /etc/init.d/postgresql start &&\
     psql --command "CREATE USER docker WITH SUPERUSER PASSWORD 'docker';" &&\
-    psql --command "SHOW timezone;" &&\
-    psql --variable=timezone=Eroupe/Moscow &&\
+#    psql --variable=timezone=Eroupe/Moscow &&\
     createdb -O docker docker &&\
     psql -d docker -f ddl.sql &&\
-    psql --command "SHOW timezone;" &&\
     /etc/init.d/postgresql stop
 
 # Adjust PostgreSQL configuration so that remote connections to the
