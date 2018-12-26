@@ -24,7 +24,7 @@ class Thread:
 
     @staticmethod
     def query_get_threads(forum_slug, limit, desc, since):
-        query = "SELECT thread.id, slug, created, title, message, author, forum " \
+        query = "SELECT thread.id, slug, created, title, message, author, forum, votes " \
                 "FROM thread " \
                 "WHERE forum = '{slug}'".format(slug=forum_slug)
         if since:
@@ -49,7 +49,7 @@ class Thread:
 
     @staticmethod
     def query_get_thread_by_id(id):
-        return "SELECT * FROM thread WHERE id = {};".format(id)
+        return 'SELECT * FROM thread WHERE id = {};'.format(id)
 
     @staticmethod
     def query_get_thread_by_slug(slug):

@@ -1,11 +1,13 @@
 import asyncpg
 from aiohttp import web
 from models.forum import Forum
+from .timer import logger
 
 routes = web.RouteTableDef()
 
 
 @routes.post('/api/forum/create', expect_handler=web.Request.json)
+@logger
 async def handle_forum_create(request):
     data = await request.json()
     forum = Forum(**data)
@@ -28,6 +30,7 @@ async def handle_forum_create(request):
 
 
 @routes.get('/api/forum/{slug}/details')
+@logger
 async def handle_get(request):
     slug = request.match_info['slug']
     pool = request.app['pool']
@@ -40,6 +43,7 @@ async def handle_get(request):
 
 
 @routes.get('/api/forum/{slug}/users')
+@logger
 async def handle_get(request):
     slug = request.match_info['slug']
     pool = request.app['pool']
@@ -60,6 +64,7 @@ async def handle_get(request):
 
 
 @routes.get('/api/service/status')
+@logger
 async def handle_get(request):
     pool = request.app['pool']
 
@@ -78,6 +83,7 @@ async def handle_get(request):
                                                    "user": result['user']})
 
 @routes.post('/api/service/clear')
+@logger
 async def handle_get(request):
     pool = request.app['pool']
     async with pool.acquire() as connection:

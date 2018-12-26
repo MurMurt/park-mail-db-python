@@ -2,11 +2,16 @@ import asyncpg
 from aiohttp import web
 from models.post import Post
 from models.thread import Thread
+from .timer import logger, timeit
+import time
+
+
 
 routes = web.RouteTableDef()
 
 
 @routes.post('/api/thread/{slug}/create', expect_handler=web.Request.json)
+@logger
 async def handle_posts_create(request):
     data = await request.json()
 
@@ -56,13 +61,15 @@ async def handle_posts_create(request):
 
 
 @routes.get('/api/post/{id}/details', expect_handler=web.Request.json)
+@logger
+@timeit
 async def handle_post_details(request):
+    ts = time.time()
     id = request.match_info['id']
     pool = request.app['pool']
     related = request.rel_url.query.get('related', False)
 
     async with pool.acquire() as connection:
-        # print(Post.query_get_post_details(id))
         result = await connection.fetch(Post.query_get_post_details(id))
         if len(result) == 0:
             return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
@@ -78,9 +85,11 @@ async def handle_post_details(request):
             "message": post['post_message'],
             "thread": post['thread_id'],
             "isEdited": post['is_edited'],
+            "parent": post['parent'] if post['parent'] != int(id) else 0,
         }
-        # print('RES', post)
         if not related:
+            te = time.time()
+            print('%r  %2.2f ms' % ('handle_post_details', (te - ts) * 1000))
             return web.json_response(status=200, data={'post': result})
         else:
             user = False
@@ -104,6 +113,7 @@ async def handle_post_details(request):
                     "slug": post['t_slug'],
                     "forum": post['forum'],
                     "title": post['t_title'],
+                    "votes": post['votes'],
                 }
             if 'forum' in related:
                 forum = {
@@ -122,11 +132,13 @@ async def handle_post_details(request):
             if forum:
                 data['forum'] = forum
 
+            te = time.time()
+            print('%r  %2.2f ms' % ('handle_post_details', (te - ts) * 1000))
             return web.json_response(status=200, data=data)
 
 
-
 @routes.post('/api/post/{id}/details', expect_handler=web.Request.json)
+@logger
 async def handle_posts_create(request):
     id = request.match_info['id']
     data = await request.json()
@@ -148,6 +160,7 @@ async def handle_posts_create(request):
         else:
             async with pool.acquire() as connection:
                 # print(Post.query_get_post_details(id))
+                # print("GET POST DETAILS", Post.query_get_post_details(id))
                 result = await connection.fetch(Post.query_get_post_details(id))
                 if len(result) == 0:
                     return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})

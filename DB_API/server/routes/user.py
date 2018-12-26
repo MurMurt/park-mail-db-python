@@ -1,10 +1,12 @@
 from aiohttp import web
 from models.user import User
+from .timer import logger
 
 routes = web.RouteTableDef()
 
 
 @routes.post('/api/user/{nickname}/create', expect_handler=web.Request.json)
+@logger
 async def handle_user_create(request):
     data = await request.json()
     user = User(**data, nickname=request.match_info['nickname'])
@@ -24,6 +26,7 @@ async def handle_user_create(request):
 
 
 @routes.get('/api/user/{nickname}/profile')
+@logger
 async def handle_get(request):
     nickname = request.match_info['nickname']
     pool = request.app['pool']
@@ -35,6 +38,7 @@ async def handle_get(request):
 
 
 @routes.post('/api/user/{nickname}/profile', expect_handler=web.Request.json)
+@logger
 async def handle_user_update(request):
     data = await request.json()
     nickname = request.match_info['nickname']

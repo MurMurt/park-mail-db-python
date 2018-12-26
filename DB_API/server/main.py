@@ -11,7 +11,6 @@ import asyncio
 import asyncpg
 
 
-
 async def init_app():
     """Initialize the application server."""
     app = web.Application()
