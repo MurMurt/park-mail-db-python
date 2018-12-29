@@ -1,6 +1,7 @@
 from aiohttp import web
 from models.user import User
-from .timer import logger
+from .timer import logger, DEBUG
+import time
 
 routes = web.RouteTableDef()
 
@@ -28,12 +29,16 @@ async def handle_user_create(request):
 @routes.get('/api/user/{nickname}/profile')
 @logger
 async def handle_get(request):
+    ts = time.time()
+
     nickname = request.match_info['nickname']
     pool = request.app['pool']
     async with pool.acquire() as connection:
         result = await connection.fetch(User.query_get_user(nickname))
         if len(result) == 0:
             return web.json_response(status=404, data={"message": "Can't find user by nickname " + nickname})
+        if DEBUG:
+            print('%r  %2.2f ms' % ('/api/user/{}/profile'.format(nickname), (time.time() - ts) * 1000))
         return web.json_response(status=200, data=dict(result[0]))
 
 

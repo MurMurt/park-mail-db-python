@@ -2,7 +2,7 @@ import asyncpg
 from aiohttp import web
 from models.post import Post
 from models.thread import Thread
-from .timer import logger, timeit
+from .timer import logger, DEBUG
 import time
 
 
@@ -37,32 +37,26 @@ async def handle_posts_create(request):
             forum = res[0]['forum']
 
     async with pool.acquire() as connection:
-        # print('QUERY', Post.query_create_post(thread_id, data))
         if len(data) == 0:
             return web.json_response(status=201, data=[])
         try:
-            # print('QUERY ', Post.query_create_post(thread_id, data))
             res = await connection.fetch(Post.query_create_post(thread_id, data))
         except asyncpg.exceptions.NotNullViolationError:
             return web.json_response(status=409, data={"message": "Can't find user with id #42\n"})
         except Exception as e:
-            # print('ERROR post', type(e), e)
             return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
         else:
-            # print(res)
             for i in range(len(res)):
                 data[i]['created'] = res[i]['created'].astimezone().isoformat()
                 data[i]['id'] = res[i]['id']
                 data[i]['forum'] = forum
                 data[i]['thread'] = int(thread_id)
-
             return web.json_response(status=201, data=data)
     # return web.json_response(status=201, data=[])
 
 
 @routes.get('/api/post/{id}/details', expect_handler=web.Request.json)
 @logger
-@timeit
 async def handle_post_details(request):
     ts = time.time()
     id = request.match_info['id']
@@ -89,13 +83,13 @@ async def handle_post_details(request):
         }
         if not related:
             te = time.time()
-            print('%r  %2.2f ms' % ('handle_post_details', (te - ts) * 1000))
+            if DEBUG:
+                print('%r  %2.2f ms' % ('/api/post/{}/details'.format(id), (te - ts) * 1000))
             return web.json_response(status=200, data={'post': result})
         else:
             user = False
             thread = False
             forum = False
-            # print('RELLLL', type(related))
             related = related.split(',')
             if 'user' in related:
                 user = {
@@ -133,13 +127,14 @@ async def handle_post_details(request):
                 data['forum'] = forum
 
             te = time.time()
-            print('%r  %2.2f ms' % ('handle_post_details', (te - ts) * 1000))
+            if DEBUG:
+                print('%r  %2.2f ms' % ('/api/post/{}/details'.format(id), (te - ts) * 1000))
             return web.json_response(status=200, data=data)
 
 
 @routes.post('/api/post/{id}/details', expect_handler=web.Request.json)
 @logger
-async def handle_posts_create(request):
+async def handle_posts_details_post(request):
     id = request.match_info['id']
     data = await request.json()
     message = data.get('message', False)
@@ -147,7 +142,6 @@ async def handle_posts_create(request):
     pool = request.app['pool']
     async with pool.acquire() as connection:
         try:
-            # print(Post.query_get_post_details(id))
             if message:
                 result = await connection.fetch("SELECT message FROM post WHERE id = {id}".format(id=id))
                 if len(result) != 0 and dict(result[0])['message'] != message:
@@ -155,12 +149,9 @@ async def handle_posts_create(request):
                     result = await connection.fetch("UPDATE post SET message = '{message}', is_edited = TRUE "
                                             "WHERE id = {id}".format(message=message, id=id))
         except Exception as e:
-            # print('ERROR', type(e), e)
             return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
         else:
             async with pool.acquire() as connection:
-                # print(Post.query_get_post_details(id))
-                # print("GET POST DETAILS", Post.query_get_post_details(id))
                 result = await connection.fetch(Post.query_get_post_details(id))
                 if len(result) == 0:
                     return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
@@ -175,7 +166,7 @@ async def handle_posts_create(request):
                     "message": post['post_message'],
                     "thread": post['thread_id'],
                 }
-                # print('RES', post)
+
                 return web.json_response(status=200, data={
                     "author": post['nickname'],
                     "created": post['post_created'].astimezone().isoformat(),

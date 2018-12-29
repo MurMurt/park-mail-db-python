@@ -1,7 +1,8 @@
 import asyncpg
 from aiohttp import web
 from models.forum import Forum
-from .timer import logger
+from .timer import logger, DEBUG
+import time
 
 routes = web.RouteTableDef()
 
@@ -15,7 +16,6 @@ async def handle_forum_create(request):
     pool = request.app['pool']
     async with pool.acquire() as connection:
         try:
-            # print('QUERY', forum.query_create_forum())
             await connection.fetch(forum.query_create_forum())
         except asyncpg.exceptions.UniqueViolationError as e:
             result = await connection.fetch(Forum.query_get_forum(forum.slug))
@@ -23,28 +23,38 @@ async def handle_forum_create(request):
             return web.json_response(status=409, data=forum)
         except asyncpg.exceptions.ForeignKeyViolationError as e:
             return web.json_response(status=404, data={"message": "Can't find user by nickname " + forum.user})
-    async with pool.acquire() as connection:
-        result = await connection.fetch(Forum.query_get_forum(forum.slug))
-    forum = dict(result[0])
-    return web.json_response(status=201, data=forum)
+        else:
+            async with pool.acquire() as connection:
+                print('QUERY', Forum.query_get_forum(forum.slug))
+                result = await connection.fetch(Forum.query_get_forum(forum.slug))
+
+                forum = dict(result[0])
+                return web.json_response(status=201, data=forum)
 
 
 @routes.get('/api/forum/{slug}/details')
 @logger
 async def handle_get(request):
+    ts = time.time()
     slug = request.match_info['slug']
     pool = request.app['pool']
     async with pool.acquire() as connection:
+        # print("QUERY:", Forum.query_get_forum(slug))
+        # exit(0)
         result = await connection.fetch(Forum.query_get_forum(slug))
         if len(result) == 0:
             return web.json_response(status=404, data={"message": "Can't find user by nickname " + slug})
         forum = dict(result[0])
+        te = time.time()
+        if DEBUG:
+            print('%r  %2.2f ms' % ('/api/forum/{}/details'.format(slug), (te - ts) * 1000))
         return web.json_response(status=200, data=forum)
 
 
 @routes.get('/api/forum/{slug}/users')
 @logger
 async def handle_get(request):
+    ts = time.time()
     slug = request.match_info['slug']
     pool = request.app['pool']
     limit = request.rel_url.query.get('limit', False)
@@ -57,15 +67,21 @@ async def handle_get(request):
             result = await connection.fetch("SELECT slug FROM forum WHERE slug = '{}'".format(slug))
             if len(result) == 0:
                 return web.json_response(status=404, data={"message": "Can't find forum by slug " + slug})
-
+            te = time.time()
+            if DEBUG:
+                print('%r  %2.2f ms' % ('/api/forum/{}/users'.format(slug), (te - ts) * 1000))
             return web.json_response(status=200, data=[])
         users = list(map(dict, list(result)))
+        te = time.time()
+        if DEBUG:
+            print('%r  %2.2f ms' % ('/api/forum/{}/users'.format(slug), (te - ts) * 1000))
         return web.json_response(status=200, data=users)
 
 
 @routes.get('/api/service/status')
 @logger
 async def handle_get(request):
+    ts = time.time()
     pool = request.app['pool']
 
     async with pool.acquire() as connection:
@@ -76,16 +92,27 @@ async def handle_get(request):
 				(SELECT COUNT(*) AS "post" FROM post) AS "p",
 				(SELECT COUNT(*) AS "user" FROM users) AS "u"
 		''')
+
         result = dict(result[0])
+        te = time.time()
+        if DEBUG:
+            print('%r  %2.2f ms' % ('/api/service/status', (te - ts) * 1000))
+
         return web.json_response(status=200, data={"forum": result['forum'],
                                                    "post": result['post'],
                                                    "thread": result['thread'],
                                                    "user": result['user']})
 
+
 @routes.post('/api/service/clear')
 @logger
 async def handle_get(request):
+    ts = time.time()
     pool = request.app['pool']
     async with pool.acquire() as connection:
         result = await connection.fetch("TRUNCATE  post, vote, thread, forum, users;")
+        te = time.time()
+        if DEBUG:
+            print('%r  %2.2f ms' % ('/api/service/clear', (te - ts) * 1000))
+
         return web.json_response(status=200)
