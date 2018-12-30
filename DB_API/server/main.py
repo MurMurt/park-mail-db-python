@@ -27,15 +27,30 @@ async def init_app():
 
 
 
-def main():
+# def main():
     # app = web.Application()
     # app.router.add_routes(routes)
     # app['config'] = config
     # app['db'] = run()
-    loop = asyncio.get_event_loop()
-    app = loop.run_until_complete(init_app())
-    web.run_app(app, port=5000)
+
+    # loop = asyncio.get_event_loop()
+    # app = loop.run_until_complete(init_app())
+
+# app = web.Application()
+# # Create a database connection pool
+# app['pool'] = asyncpg.create_pool(user='docker', password='docker', database='docker', host='127.0.0.1')
+# app.router.add_routes(user_routes)
+# app.router.add_routes(forum_routes)
+# app.router.add_routes(thread_routes)
+# app.router.add_routes(post_routes)
+# app.router.add_routes(vote_routes)
+
+loop = asyncio.get_event_loop()
+app = loop.run_until_complete(init_app())
 
 
-if __name__ == '__main__':
-    main()
+# web.run_app(app, port=5000)
+
+#
+# if __name__ == '__main__':
+#     main()

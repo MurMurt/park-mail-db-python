@@ -25,7 +25,7 @@ async def handle_forum_create(request):
             return web.json_response(status=404, data={"message": "Can't find user by nickname " + forum.user})
         else:
             async with pool.acquire() as connection:
-                print('QUERY', Forum.query_get_forum(forum.slug))
+                # print('QUERY', Forum.query_get_forum(forum.slug))
                 result = await connection.fetch(Forum.query_get_forum(forum.slug))
 
                 forum = dict(result[0])
