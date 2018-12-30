@@ -12,6 +12,8 @@ routes = web.RouteTableDef()
 @routes.post('/api/forum/{slug}/create', expect_handler=web.Request.json)
 @logger
 async def handle_forum_create(request):
+    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+
     data = await request.json()
     forum = request.match_info['slug']
     forum_slug = data.get('forum', False)
@@ -51,6 +53,8 @@ async def handle_forum_create(request):
 @routes.get('/api/forum/{slug}/threads')
 @logger
 async def handle_get(request):
+    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+
     ts = time.time()
     forum_slug = request.match_info['slug']
     limit = request.rel_url.query.get('limit', 0)
@@ -79,6 +83,8 @@ async def handle_get(request):
 @routes.get('/api/thread/{slug_or_id}/details')
 @logger
 async def handle_get_details(request):
+    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+
     ts = time.time()
 
     thread_slug_or_id = request.match_info['slug_or_id']
@@ -114,6 +120,8 @@ async def handle_get_details(request):
 @routes.get('/api/thread/{slug_or_id}/posts')
 @logger
 async def handle_get_posts(request):
+    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+
     ts = time.time()
 
     thread_slug_or_id = request.match_info['slug_or_id']
@@ -156,6 +164,8 @@ async def handle_get_posts(request):
 @routes.post('/api/thread/{slug_or_id}/details', expect_handler=web.Request.json)
 @logger
 async def handle_thread_update(request):
+    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+
     data = await request.json()
     thread_slug_or_id = request.match_info['slug_or_id']
     message = data.get('message', False)

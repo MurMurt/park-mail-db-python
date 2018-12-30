@@ -3,6 +3,10 @@ from aiohttp import web
 from models.forum import Forum
 from .timer import logger, DEBUG
 import time
+import psycopg2
+from psycopg2 import extras
+from psycopg2 import errorcodes
+
 
 routes = web.RouteTableDef()
 
@@ -10,31 +14,61 @@ routes = web.RouteTableDef()
 @routes.post('/api/forum/create', expect_handler=web.Request.json)
 @logger
 async def handle_forum_create(request):
+
     data = await request.json()
     forum = Forum(**data)
 
-    pool = request.app['pool']
-    async with pool.acquire() as connection:
-        try:
-            await connection.fetch(forum.query_create_forum())
-        except asyncpg.exceptions.UniqueViolationError as e:
-            result = await connection.fetch(Forum.query_get_forum(forum.slug))
-            forum = dict(result[0])
-            return web.json_response(status=409, data=forum)
-        except asyncpg.exceptions.ForeignKeyViolationError as e:
-            return web.json_response(status=404, data={"message": "Can't find user by nickname " + forum.user})
-        else:
-            async with pool.acquire() as connection:
-                # print('QUERY', Forum.query_get_forum(forum.slug))
-                result = await connection.fetch(Forum.query_get_forum(forum.slug))
+    connection_pool = request.app['pool']
+    connection = connection_pool.getconn()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-                forum = dict(result[0])
-                return web.json_response(status=201, data=forum)
+    try:
+        cursor.execute(forum.query_create_forum())
+        connection.commit()
+    except psycopg2.Error as e:
+        connection.rollback()
+        error = psycopg2.errorcodes.lookup(e.pgcode)
+        if error == 'UNIQUE_VIOLATION':
+            cursor.execute(Forum.query_get_forum(forum.slug))
+            result = cursor.fetchone()
+            connection_pool.putconn(connection)
+            return web.json_response(status=409, data=result)
+
+        else:  # FOREIGN_KEY_VIOLATION
+            connection_pool.putconn(connection)
+            return web.json_response(status=404, data={"message": "Can't find user by nickname " + forum.user})
+
+    else:
+        cursor.execute(Forum.query_get_forum(forum.slug))
+        result = cursor.fetchone()
+        connection_pool.putconn(connection)
+        return web.json_response(status=201, data=result)
+
+
+
+    # async with pool.acquire() as connection:
+    #     try:
+    #         await connection.fetch(forum.query_create_forum())
+    #     except asyncpg.exceptions.UniqueViolationError as e:
+    #         result = await connection.fetch(Forum.query_get_forum(forum.slug))
+    #         forum = dict(result[0])
+    #         return web.json_response(status=409, data=forum)
+    #     except asyncpg.exceptions.ForeignKeyViolationError as e:
+    #         return web.json_response(status=404, data={"message": "Can't find user by nickname " + forum.user})
+    #     else:
+    #         async with pool.acquire() as connection:
+    #             # print('QUERY', Forum.query_get_forum(forum.slug))
+    #             result = await connection.fetch(Forum.query_get_forum(forum.slug))
+    #
+    #             forum = dict(result[0])
+    #             return web.json_response(status=201, data=forum)
 
 
 @routes.get('/api/forum/{slug}/details')
 @logger
 async def handle_get(request):
+    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+
     ts = time.time()
     slug = request.match_info['slug']
     pool = request.app['pool']
@@ -54,6 +88,8 @@ async def handle_get(request):
 @routes.get('/api/forum/{slug}/users')
 @logger
 async def handle_get(request):
+    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+
     ts = time.time()
     slug = request.match_info['slug']
     pool = request.app['pool']
@@ -81,6 +117,8 @@ async def handle_get(request):
 @routes.get('/api/service/status')
 @logger
 async def handle_get(request):
+    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+
     ts = time.time()
     pool = request.app['pool']
 
@@ -107,6 +145,8 @@ async def handle_get(request):
 @routes.post('/api/service/clear')
 @logger
 async def handle_get(request):
+    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+
     ts = time.time()
     pool = request.app['pool']
     async with pool.acquire() as connection:

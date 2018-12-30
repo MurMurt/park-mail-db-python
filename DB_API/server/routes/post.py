@@ -135,6 +135,8 @@ async def handle_post_details(request):
 @routes.post('/api/post/{id}/details', expect_handler=web.Request.json)
 @logger
 async def handle_posts_details_post(request):
+    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+
     id = request.match_info['id']
     data = await request.json()
     message = data.get('message', False)

@@ -24,7 +24,6 @@ RUN pip3 install aiohttp
 RUN pip3 install asyncpg
 RUN pip3 install pyyaml
 RUN pip3 install cchardet
-RUN pip3 install gunicorn
 
 #
 # Установка postgresql
@@ -84,6 +83,6 @@ EXPOSE 5000
 # Запускаем PostgreSQL и сервер
 #
 CMD service postgresql start &&\
-    cd $WORK/DB_API/server &&\
-    gunicorn main:app -c gunicorn.conf.py
+    cd $WORK/DB_API &&\
+    python3 server/main.py
 

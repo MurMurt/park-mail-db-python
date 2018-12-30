@@ -10,6 +10,8 @@ routes = web.RouteTableDef()
 @routes.post('/api/thread/{slug_or_id}/vote', expect_handler=web.Request.json)
 @logger
 async def handle_posts_create(request):
+    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+
     data = await request.json()
 
     pool = request.app['pool']
