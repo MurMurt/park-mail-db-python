@@ -66,7 +66,6 @@ async def handle_user_update(request):
         cursor.execute(User.query_update_user(**data, nickname=nickname))
         connection.commit()
     except psycopg2.Error as e:
-        print('USER POST profile:', e.pgcode)
         connection.rollback()
         connection_pool.putconn(connection)
         return web.json_response(status=409, data={})

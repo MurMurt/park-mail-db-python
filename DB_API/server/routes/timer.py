@@ -9,7 +9,8 @@ def timeit(method):
         ts = time.time()
         result = method(*args, **kw)
         te = time.time()
-        print('%r  %3.3f ms' % (method.__name__, (te - ts) * 1000000))
+        if DEBUG:
+            print('%r  %3.3f ms' % (method.__name__, (te - ts) * 1000000))
         return result
     return timed
 
@@ -22,3 +23,4 @@ def logger(func):
             logging.info(func.__doc__)
         return func(self, *argv, **kwargv)
     return wrapper
+

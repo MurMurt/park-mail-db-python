@@ -13,8 +13,9 @@ class Post:
             if parent:
                 post_values_query += "(SELECT thread_id FROM post WHERE id = {parent} AND " \
                                      "thread_id = {thread_id}), {parent}, " \
-                                     "(SELECT path FROM post" \
-                                     " WHERE id = {parent} ) ), ".format(parent=parent, thread_id=thread_id)
+                                     "(SELECT path || id FROM post" \
+                                     " WHERE id = {parent} AND thread_id = {thread_id}) ), ".format(parent=parent,
+                                                                                                    thread_id=thread_id)
             else:
                 post_values_query += "{}, NULL, NULL ), ".format(thread_id)
 
@@ -22,7 +23,6 @@ class Post:
 
         query = query[:-2] + " RETURNING id, created, thread_id"
         return query
-
 
     @staticmethod
     def query_get_posts(thread_id, since, sort, decs, limit):
@@ -50,69 +50,59 @@ class Post:
                 query += "LIMIT {}".format(limit)
 
         elif sort == 'tree':
-            query = "SELECT forum, author,created, id, message, CASE WHEN parent = id THEN NULL ELSE parent END, thread FROM (" \
-                    "SELECT (SELECT forum FROM thread WHERE id = {thread_id}), " \
-                    "author, created, id, message, " \
-                    "parent_id as parent, thread_id as thread, " \
-                    "path " \
-                    "FROM post WHERE thread_id = {thread_id} ".format(
+            query = "SELECT p.author, p.created, (SELECT forum FROM thread WHERE id = {thread_id})," \
+                    " p.id, p.message, p.parent_id as parent, p.thread_id as thread FROM post p ".format(
                 thread_id=thread_id)
-            if decs == 'true':
-                query += "ORDER BY path DESC, id"
-            else:
-                query += "ORDER BY path, id "
-
-            query += " ) as T "
 
             if since and decs == 'true':
-                query += "WHERE path < (SELECT path from (SELECT id, path from post) as tt WHERE tt.id = {since}) ".format(
+                query += " JOIN post ON post.id = {since} WHERE p.path || p.id < post.path || post.id ".format(
                     since=since)
+
             elif since and decs != 'true':
-                query += "WHERE path > (SELECT path from (SELECT id, path from post) as tt WHERE tt.id = {since}) ".format(
+                query += " JOIN post ON post.id = {since} WHERE p.path || p.id > post.path || post.id ".format(
                     since=since)
+
+            if since:
+                query += " AND p.thread_id = {thread_id} ORDER BY p.path || p.id ".format(thread_id=thread_id)
+
+            else:
+                query += " WHERE p.thread_id = {thread_id} ORDER BY p.path || p.id ".format(thread_id=thread_id)
+
+            if decs == 'true':
+                query += " DESC "
 
             if limit:
                 query += " LIMIT {}".format(limit)
 
         elif sort == 'parent_tree':
-            query = "SELECT forum, T.author, T.created, T.id, T.message, CASE WHEN parent = T.id THEN NULL ELSE parent END, thread FROM (" \
-                    "SELECT (SELECT forum FROM thread WHERE id = {thread_id}), " \
-                    "author, created, id, message, " \
-                    "parent_id as parent, thread_id as thread, " \
-                    "CASE WHEN path NOTNULL THEN path || ARRAY[id] ELSE ARRAY[id] END as path " \
-                    "FROM post WHERE thread_id = {thread_id} ".format(thread_id=thread_id)
-
-            if decs == 'true':
-                query += "ORDER BY parent DESC, path, id "
-            else:
-                query += "ORDER BY path, id "
-
-            query += " ) as T "
+            query = "SELECT ch.id, ch.thread_id as thread, ch.parent_id, ch.path, ch.created, ch.message, ch.author, ch.parent_id as parent, " \
+                    "(SELECT forum FROM thread WHERE id = {thread_id}) " \
+                    "FROM (SELECT * from post WHERE parent_id IS NULL AND " \
+                    "thread_id = {thread_id} ".format(thread_id=thread_id)
 
             if since:
-                query += "join (SELECT id " \
-                         "FROM (SELECT CASE WHEN path NOTNULL THEN path || ARRAY[id] ELSE ARRAY[id] END as paths, id, parent_id" \
-                         " FROM post " \
-                         "WHERE parent_id = id AND thread_id = {thread_id}) as I" \
-                         " WHERE paths [ 1 ] {comparator} (SELECT CASE WHEN path NOTNULL THEN path [ 1 ] ELSE id END as path " \
-                         "from post WHERE id = {since}) ".format(since=since, thread_id=thread_id,
-                                                                 comparator='<' if decs == 'true' else '>')
-            else:
-                query += " join (SELECT * FROM post WHERE parent_id = id AND thread_id = {thread_id} ".format(
-                    thread_id=thread_id)
-            if limit and decs == 'true':
-                query += " ORDER BY id desc LIMIT {}".format(limit)
-            elif limit and decs != 'true':
-                query += " ORDER BY id LIMIT {}".format(limit)
-            query += " ) as S ON S.id = T.path[1]"
+                query += "AND id "
+                if decs == 'true':
+                    query += "<"
+                else:
+                    query += ">"
+
+                query += " (SELECT parent_id FROM post WHERE id = {}) ".format(since)
+
+            query += " ORDER BY id "
+            if decs == 'true':
+                query += "DESC "
+            if limit:
+                query += "LIMIT {}".format(limit)
+            query += ") parents JOIN post ch ON parents.id = ch.id OR ch.path [1] = parents.id " \
+                     "ORDER BY parents.id "
 
             if decs == 'true':
-                query += "ORDER BY row_number() over (order by T.path [1] desc , T.path)"
-            else:
-                query += "ORDER BY row_number() over (order by T.path [1] , T.path)"
+                query += "DESC "
+
+            query += ", ch.path || ch.id ASC "
 
         return query
-
 
     @staticmethod
     def query_get_post_details(post_id):
