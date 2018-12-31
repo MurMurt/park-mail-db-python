@@ -9,11 +9,12 @@ def timeit(method):
         ts = time.time()
         result = method(*args, **kw)
         te = time.time()
-        print('%r  %2.2f ms' % (method.__name__, (te - ts) * 1000))
+        print('%r  %3.3f ms' % (method.__name__, (te - ts) * 1000000))
         return result
     return timed
 
 
+@timeit
 def logger(func):
     def wrapper(self, *argv, **kwargv):
         if DEBUG:

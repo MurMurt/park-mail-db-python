@@ -1,10 +1,10 @@
-import asyncpg
+import psycopg2
+from psycopg2 import extras, errorcodes
 from aiohttp import web
 from models.post import Post
 from models.thread import Thread
 from .timer import logger, DEBUG
 import time
-
 
 
 routes = web.RouteTableDef()
@@ -14,44 +14,81 @@ routes = web.RouteTableDef()
 @logger
 async def handle_posts_create(request):
     data = await request.json()
-
-    # if len(data) == 0:
-    #     return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-
-    pool = request.app['pool']
     thread_slug_or_id = request.match_info['slug']
 
-    if not thread_slug_or_id.isdigit():
-        async with pool.acquire() as connection:
-            res = await connection.fetch(Thread.query_get_thread_id(thread_slug_or_id))
-            if len(res) == 0:
-                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-            thread_id = (res[0]['id'])
-            forum = res[0]['forum']
-    else:
-        thread_id = thread_slug_or_id
-        async with pool.acquire() as connection:
-            res = await connection.fetch(Thread.query_get_thread_forum(thread_id))
-            if len(res) == 0:
-                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-            forum = res[0]['forum']
+    connection_pool = request.app['pool']
+    connection = connection_pool.getconn()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    async with pool.acquire() as connection:
-        if len(data) == 0:
-            return web.json_response(status=201, data=[])
-        try:
-            res = await connection.fetch(Post.query_create_post(thread_id, data))
-        except asyncpg.exceptions.NotNullViolationError:
-            return web.json_response(status=409, data={"message": "Can't find user with id #42\n"})
-        except Exception as e:
-            return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-        else:
-            for i in range(len(res)):
-                data[i]['created'] = res[i]['created'].astimezone().isoformat()
-                data[i]['id'] = res[i]['id']
-                data[i]['forum'] = forum
-                data[i]['thread'] = int(thread_id)
-            return web.json_response(status=201, data=data)
+    cursor.execute(Thread.query_get_thread_forum(thread_slug_or_id))
+    result = cursor.fetchone()
+
+    if not result:
+        connection_pool.putconn(connection)
+        return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+
+    thread_id = result['id']
+    forum = result['forum']
+
+    if len(data) == 0:
+        connection_pool.putconn(connection)
+        return web.json_response(status=201, data=[])
+
+    result = None
+    try:
+        cursor.execute(Post.query_create_post(thread_id, data))
+        result = cursor.fetchall()
+        connection.commit()
+    except psycopg2.Error as e:
+        connection.rollback()
+        error = psycopg2.errorcodes.lookup(e.pgcode)
+        connection_pool.putconn(connection)
+
+        #     TODO: 2 исключения
+        return web.json_response(status=409, data={"message": "Can't find user with id #42\n"})
+        # return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+    else:
+        connection_pool.putconn(connection)
+        for i in range(len(result)):
+            data[i]['created'] = result[i]['created'].astimezone().isoformat()
+            data[i]['id'] = result[i]['id']
+            data[i]['forum'] = forum
+            data[i]['thread'] = int(thread_id)
+        return web.json_response(status=201, data=data)
+
+
+
+    # if not thread_slug_or_id.isdigit():
+    #     async with pool.acquire() as connection:
+    #         res = await connection.fetch(Thread.query_get_thread_id(thread_slug_or_id))
+    #         if len(res) == 0:
+    #             return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+    #         thread_id = (res[0]['id'])
+    #         forum = res[0]['forum']
+    # else:
+    #     thread_id = thread_slug_or_id
+    #     async with pool.acquire() as connection:
+    #         res = await connection.fetch(Thread.query_get_thread_forum(thread_id))
+    #         if len(res) == 0:
+    #             return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+    #         forum = res[0]['forum']
+    #
+    # async with pool.acquire() as connection:
+    #     if len(data) == 0:
+    #         return web.json_response(status=201, data=[])
+    #     try:
+    #         res = await connection.fetch(Post.query_create_post(thread_id, data))
+    #     except asyncpg.exceptions.NotNullViolationError:
+    #         return web.json_response(status=409, data={"message": "Can't find user with id #42\n"})
+    #     except Exception as e:
+    #         return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+    #     else:
+    #         for i in range(len(res)):
+    #             data[i]['created'] = res[i]['created'].astimezone().isoformat()
+    #             data[i]['id'] = res[i]['id']
+    #             data[i]['forum'] = forum
+    #             data[i]['thread'] = int(thread_id)
+    #         return web.json_response(status=201, data=data)
     # return web.json_response(status=201, data=[])
 
 

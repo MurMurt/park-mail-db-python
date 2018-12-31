@@ -1,4 +1,4 @@
-import asyncpg
+# import asyncpg
 from aiohttp import web
 from models.forum import Forum
 from .timer import logger, DEBUG
@@ -34,9 +34,12 @@ async def handle_forum_create(request):
             connection_pool.putconn(connection)
             return web.json_response(status=409, data=result)
 
-        else:  # FOREIGN_KEY_VIOLATION
+        if error == 'FOREIGN_KEY_VIOLATION':
             connection_pool.putconn(connection)
             return web.json_response(status=404, data={"message": "Can't find user by nickname " + forum.user})
+        else:
+            connection_pool.putconn(connection)
+            return web.json_response(status=404, data={"message": str(e), "code": error})
 
     else:
         cursor.execute(Forum.query_get_forum(forum.slug))
@@ -45,44 +48,25 @@ async def handle_forum_create(request):
         return web.json_response(status=201, data=result)
 
 
-
-    # async with pool.acquire() as connection:
-    #     try:
-    #         await connection.fetch(forum.query_create_forum())
-    #     except asyncpg.exceptions.UniqueViolationError as e:
-    #         result = await connection.fetch(Forum.query_get_forum(forum.slug))
-    #         forum = dict(result[0])
-    #         return web.json_response(status=409, data=forum)
-    #     except asyncpg.exceptions.ForeignKeyViolationError as e:
-    #         return web.json_response(status=404, data={"message": "Can't find user by nickname " + forum.user})
-    #     else:
-    #         async with pool.acquire() as connection:
-    #             # print('QUERY', Forum.query_get_forum(forum.slug))
-    #             result = await connection.fetch(Forum.query_get_forum(forum.slug))
-    #
-    #             forum = dict(result[0])
-    #             return web.json_response(status=201, data=forum)
-
-
 @routes.get('/api/forum/{slug}/details')
 @logger
 async def handle_get(request):
-    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
 
-    ts = time.time()
     slug = request.match_info['slug']
-    pool = request.app['pool']
-    async with pool.acquire() as connection:
-        # print("QUERY:", Forum.query_get_forum(slug))
-        # exit(0)
-        result = await connection.fetch(Forum.query_get_forum(slug))
-        if len(result) == 0:
-            return web.json_response(status=404, data={"message": "Can't find user by nickname " + slug})
-        forum = dict(result[0])
-        te = time.time()
-        if DEBUG:
-            print('%r  %2.2f ms' % ('/api/forum/{}/details'.format(slug), (te - ts) * 1000))
-        return web.json_response(status=200, data=forum)
+
+    connection_pool = request.app['pool']
+    connection = connection_pool.getconn()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cursor.execute(Forum.query_get_forum(slug))
+
+    result = cursor.fetchone()
+    connection_pool.putconn(connection)
+    if result:
+        return web.json_response(status=200, data=result)
+    else:
+        return web.json_response(status=404, data={"message": "Can't find user by nickname " + slug})
+
 
 
 @routes.get('/api/forum/{slug}/users')

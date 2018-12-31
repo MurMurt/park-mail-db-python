@@ -4,15 +4,15 @@ from models.post import Post
 from models.thread import Thread
 from .timer import logger, DEBUG
 import time
+import psycopg2
+from psycopg2 import extras
 
 routes = web.RouteTableDef()
-
 
 
 @routes.post('/api/forum/{slug}/create', expect_handler=web.Request.json)
 @logger
 async def handle_forum_create(request):
-    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
 
     data = await request.json()
     forum = request.match_info['slug']
@@ -22,62 +22,81 @@ async def handle_forum_create(request):
     else:
         thread = Thread(**data)
 
-    pool = request.app['pool']
+    connection_pool = request.app['pool']
+    connection = connection_pool.getconn()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
     thread_id = None
-    async with pool.acquire() as connection:
-        try:
-            result = await connection.fetch(thread.query_create_thread())
-            thread_id = result[0]['id']
-        except Exception as e:
-            async with pool.acquire() as connection2:
-                # print("QUERY", Thread.query_get_thread_by_slug(data['slug']))
-                res = await connection2.fetch(Thread.query_get_thread_by_slug(data['slug']))
-                if len(res) == 0:
-                    return web.json_response(status=404, data={})
-                thread = dict(res[0])
-                thread['created'] = thread['created'].astimezone().isoformat()
-                return web.json_response(status=409, data=thread)
-
+    try:
+        cursor.execute(thread.query_create_thread())
+        thread_id = cursor.fetchone()['id']
+        connection.commit()
+    except psycopg2.Error as e:
+        connection.rollback()
+        cursor.execute(Thread.query_get_thread_by_slug(data['slug']))
+        result = cursor.fetchone()
+        connection_pool.putconn(connection)
+        if result:
+            result['created'] = result['created'].astimezone().isoformat()
+            return web.json_response(status=409, data=result)
         else:
-            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
-            thread = dict(res[0])
+            return web.json_response(status=404, data={})
+    else:
+        cursor.execute(Thread.query_get_thread_by_id(thread_id))
+        result = cursor.fetchone()
+        result['created'] = result['created'].astimezone().isoformat()
+        if result['slug'] == 'NULL':
+            result.pop('slug')
 
-            thread['created'] = thread['created'].astimezone().isoformat()
-            # thread['created'] = str(thread['created'])
-            if thread['slug'] == 'NULL':
-                thread.pop('slug')
-
-            return web.json_response(status=201, data=thread)
+        connection_pool.putconn(connection)
+        return web.json_response(status=201, data=result)
 
 
 @routes.get('/api/forum/{slug}/threads')
 @logger
 async def handle_get(request):
-    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
 
-    ts = time.time()
     forum_slug = request.match_info['slug']
     limit = request.rel_url.query.get('limit', 0)
     desc = request.rel_url.query.get('desc', False)
     since = request.rel_url.query.get('since', 0)
 
-    pool = request.app['pool']
-    async with pool.acquire() as connection:
-        result = await connection.fetch(Thread.query_get_threads(forum_slug, limit, desc, since))
-        if len(result) == 0:
-            result = await connection.fetch(Forum.query_get_forum(forum_slug))
-            if len(result) == 0:
-                return web.json_response(status=404, data={"message": "Can't find forum by slug " + forum_slug})
+    connection_pool = request.app['pool']
+    connection = connection_pool.getconn()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cursor.execute(Thread.query_get_threads(forum_slug, limit, desc, since))
+    result = cursor.fetchall()
+    if not result:
+        cursor.execute(Forum.query_get_forum(forum_slug))
+        result = cursor.fetchall()
+        connection_pool.putconn(connection)
+        if result:
             return web.json_response(status=200, data=[])
+        return web.json_response(status=404, data={"message": "Can't find forum by slug " + forum_slug})
 
-        data = list(map(dict, result))
-        for item in data:
-            item['created'] = item['created'].astimezone().isoformat()
+    connection_pool.putconn(connection)
+    for item in result:
+        item['created'] = item['created'].astimezone().isoformat()
 
-    if DEBUG:
-        print('%r  %2.2f ms' % ('/api/forum/{}/threads'.format(forum_slug), (time.time() - ts) * 1000))
+    return web.json_response(status=200, data=result)
 
-    return web.json_response(status=200, data=data)
+    # async with pool.acquire() as connection:
+    #     result = await connection.fetch(Thread.query_get_threads(forum_slug, limit, desc, since))
+    #     if len(result) == 0:
+    #         result = await connection.fetch(Forum.query_get_forum(forum_slug))
+    #         if len(result) == 0:
+    #             return web.json_response(status=404, data={"message": "Can't find forum by slug " + forum_slug})
+    #         return web.json_response(status=200, data=[])
+    #
+    #     data = list(map(dict, result))
+    #     for item in data:
+    #         item['created'] = item['created'].astimezone().isoformat()
+    #
+    # if DEBUG:
+    #     print('%r  %2.2f ms' % ('/api/forum/{}/threads'.format(forum_slug), (time.time() - ts) * 1000))
+    #
+    # return web.json_response(status=200, data=data)
 
 
 @routes.get('/api/thread/{slug_or_id}/details')
