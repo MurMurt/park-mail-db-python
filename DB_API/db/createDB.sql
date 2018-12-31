@@ -127,25 +127,6 @@ CREATE TRIGGER voteInsert
   AFTER INSERT
   ON vote
   FOR EACH ROW EXECUTE PROCEDURE vote_insert();
---
-CREATE OR REPLACE FUNCTION post_insert()
-  RETURNS TRIGGER AS
-$BODY$
-BEGIN
-  UPDATE post
-  SET parent_id = new.id
-  WHERE id = new.id
-    AND parent_id ISNULL;
-  UPDATE post SET path = (path || ARRAY[new.id]) WHERE id = new.id;
-  RETURN new;
-END;
-$BODY$
-LANGUAGE plpgsql;
--- --
-CREATE TRIGGER postInsert
-  AFTER INSERT
-  ON post
-  FOR EACH ROW EXECUTE PROCEDURE post_insert();
 
 -- --
 CREATE OR REPLACE FUNCTION posts_inc()
