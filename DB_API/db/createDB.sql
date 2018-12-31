@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS forum (
   threads INTEGER DEFAULT 0,
   FOREIGN KEY (user_nick) REFERENCES users (nickname)
 );
+
 --
 -- THREAD --
 CREATE TABLE IF NOT EXISTS thread (
@@ -41,7 +42,8 @@ CREATE TABLE IF NOT EXISTS thread (
   FOREIGN KEY (author) REFERENCES users (nickname),
   FOREIGN KEY (forum) REFERENCES forum (slug)
 );
---
+CREATE INDEX thread__forum_created
+  ON thread (forum, created);
 -- --
 
 CREATE OR REPLACE FUNCTION threadInc()
@@ -73,6 +75,9 @@ CREATE TABLE IF NOT EXISTS post (
   created   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
   is_edited BOOLEAN                           DEFAULT FALSE
 );
+
+CREATE INDEX post__thread_id_created
+  ON post (thread_id, id, created);
 --
 -- --
 -- VOTE --
@@ -136,7 +141,7 @@ BEGIN
 END;
 $BODY$
 LANGUAGE plpgsql;
--- -- --
+-- --
 CREATE TRIGGER postInsert
   AFTER INSERT
   ON post

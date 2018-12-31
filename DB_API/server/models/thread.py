@@ -50,6 +50,12 @@ class Thread:
             return "SELECT id, forum FROM thread WHERE id = {}".format(id_of_slug)
         return "SELECT id, forum FROM thread WHERE slug = '{}'".format(id_of_slug)
 
+    @staticmethod
+    def query_get_thread(id_of_slug):
+        if id_of_slug.isdigit():
+            return 'SELECT * FROM thread WHERE id = {};'.format(id_of_slug)
+        return "SELECT * FROM thread WHERE slug = '{}' ;".format(id_of_slug)
+
 
     @staticmethod
     def query_get_thread_by_id(id):

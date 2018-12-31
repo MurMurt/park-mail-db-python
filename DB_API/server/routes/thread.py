@@ -81,155 +81,107 @@ async def handle_get(request):
 
     return web.json_response(status=200, data=result)
 
-    # async with pool.acquire() as connection:
-    #     result = await connection.fetch(Thread.query_get_threads(forum_slug, limit, desc, since))
-    #     if len(result) == 0:
-    #         result = await connection.fetch(Forum.query_get_forum(forum_slug))
-    #         if len(result) == 0:
-    #             return web.json_response(status=404, data={"message": "Can't find forum by slug " + forum_slug})
-    #         return web.json_response(status=200, data=[])
-    #
-    #     data = list(map(dict, result))
-    #     for item in data:
-    #         item['created'] = item['created'].astimezone().isoformat()
-    #
-    # if DEBUG:
-    #     print('%r  %2.2f ms' % ('/api/forum/{}/threads'.format(forum_slug), (time.time() - ts) * 1000))
-    #
-    # return web.json_response(status=200, data=data)
-
 
 @routes.get('/api/thread/{slug_or_id}/details')
 @logger
 async def handle_get_details(request):
-    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
-
-    ts = time.time()
-
     thread_slug_or_id = request.match_info['slug_or_id']
-    pool = request.app['pool']
 
-# TODO: rewrite
-    if not thread_slug_or_id.isdigit():
-        async with pool.acquire() as connection:
-            res = await connection.fetch(Thread.query_get_thread_by_slug(thread_slug_or_id))
-            if len(res) == 0:
-                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-            data = dict(res[0])
-            data['created'] = data['created'].astimezone().isoformat()
+    connection_pool = request.app['pool']
+    connection = connection_pool.getconn()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            if DEBUG:
-                print('%r  %2.2f ms' % ('/api/thread/{}/details'.format(thread_slug_or_id), (time.time() - ts) * 1000))
-            return web.json_response(status=200, data=data)
-    else:
-        thread_id = thread_slug_or_id
-        async with pool.acquire() as connection:
-            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
-            if len(res) == 0:
-                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-            data = dict(res[0])
-            data['created'] = data['created'].astimezone().isoformat()
+    cursor.execute(Thread.query_get_thread(thread_slug_or_id))
+    result = cursor.fetchone()
+    if not result:
+        connection_pool.putconn(connection)
+        return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
 
-            if DEBUG:
-                print('%r  %2.2f ms' % ('/api/thread/{}/details'.format(thread_slug_or_id), (time.time() - ts) * 1000))
-            return web.json_response(status=200, data=data)
+    data = result
+    data['created'] = data['created'].astimezone().isoformat()
+    connection_pool.putconn(connection)
+    return web.json_response(status=200, data=data)
 
 
 
 @routes.get('/api/thread/{slug_or_id}/posts')
 @logger
 async def handle_get_posts(request):
-    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
-
-    ts = time.time()
-
     thread_slug_or_id = request.match_info['slug_or_id']
     limit = request.rel_url.query.get('limit', False)
     desc = request.rel_url.query.get('desc', False)
     since = request.rel_url.query.get('since', False)
     sort = request.rel_url.query.get('sort', 'flat')
 
-    pool = request.app['pool']
-    thread_id = thread_slug_or_id
+    connection_pool = request.app['pool']
+    connection = connection_pool.getconn()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    if not thread_slug_or_id.isdigit():
-        async with pool.acquire() as connection:
-            res = await connection.fetch(Thread.query_get_thread_id(thread_slug_or_id))
-            if len(res) == 0:
-                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-            data = dict(res[0])
-            thread_id = data['id']
-    else:
-        thread_id = thread_slug_or_id
-        async with pool.acquire() as connection:
-            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
-            if len(res) == 0:
-                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-    async with pool.acquire() as connection:
-        # print('QUERY ', Post.query_get_posts(thread_id, since, sort, desc, limit))
-        res = await connection.fetch(
-            Post.query_get_posts(thread_id, since, sort, desc, limit))
-        if len(res) == 0:
-            return web.json_response(status=200, data=[])
-        data = list(map(dict, list(res)))
-        for item in data:
-            item['created'] = item['created'].astimezone().isoformat()
+    cursor.execute(Thread.query_get_thread(thread_slug_or_id))
+    result = cursor.fetchone()
+    if not result:
+        connection_pool.putconn(connection)
+        return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
+    thread_id = result['id']
+    cursor.execute(Post.query_get_posts(thread_id, since, sort, desc, limit))
+    result = cursor.fetchall()
 
-        if DEBUG:
-            print('%r  %2.2f ms' % ('/api/thread/{}/posts'.format(thread_slug_or_id), (time.time() - ts) * 1000))
-        return web.json_response(status=200, data=data)
+    for item in result:
+        item['created'] = item['created'].astimezone().isoformat()
+
+    connection_pool.putconn(connection)
+    return web.json_response(status=200, data=result)
 
 
 @routes.post('/api/thread/{slug_or_id}/details', expect_handler=web.Request.json)
 @logger
 async def handle_thread_update(request):
-    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
-
     data = await request.json()
     thread_slug_or_id = request.match_info['slug_or_id']
     message = data.get('message', False)
     title = data.get('title', False)
-    pool = request.app['pool']
-    thread_id = thread_slug_or_id
+
+    connection_pool = request.app['pool']
+    connection = connection_pool.getconn()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     if not thread_slug_or_id.isdigit():
-        async with pool.acquire() as connection:
-            res = await connection.fetch(Thread.query_get_thread_id(thread_slug_or_id))
-            if len(res) == 0:
-                return web.json_response(status=404, data={"message": "Can't find user with id #41\n"})
-            data = dict(res[0])
-            thread_id = data['id']
+        cursor.execute(Thread.query_get_thread_id(thread_slug_or_id))
+        result = cursor.fetchone()
+        if not result:
+            connection_pool.putconn(connection)
+            return web.json_response(status=404, data={"message": "Can't find user with id #41\n"})
+        thread_id = result['id']
     else:
         thread_id = thread_slug_or_id
 
-    async with pool.acquire() as connection:
-        if not title and not message:
-            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
-            thread = dict(res[0])
+    if not title and not message:
+        cursor.execute(Thread.query_get_thread_by_id(thread_id))
+        thread = cursor.fetchone()
 
-            thread['created'] = thread['created'].astimezone().isoformat()
-            # thread['created'] = str(thread['created'])
-            if thread['slug'] == 'NULL':
-                thread.pop('slug')
+        thread['created'] = thread['created'].astimezone().isoformat()
+        if thread['slug'] == 'NULL':
+            thread.pop('slug')
 
-            return web.json_response(status=200, data=thread)
+        connection_pool.putconn(connection)
+        return web.json_response(status=200, data=thread)
+    try:
+        cursor.execute(Thread.query_update_thread(thread_id, message, title))
+        connection.commit()
+    except psycopg2.Error:
+        connection.rollback()
+        connection_pool.putconn(connection)
+        return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
 
-        try:
-            await connection.fetch(Thread.query_update_thread(thread_id, message, title))
+    else:
+        cursor.execute(Thread.query_get_thread_by_id(thread_id))
+        thread = cursor.fetchone()
+        connection_pool.putconn(connection)
 
-        except Exception as e:
-            # print('ERROR', type(e), e)
+        if not thread:
             return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-        else:
-            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
-            if len(res) == 0:
-                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
 
-            thread = dict(res[0])
-
-            thread['created'] = thread['created'].astimezone().isoformat()
-            # thread['created'] = str(thread['created'])
-            if thread['slug'] == 'NULL':
-                thread.pop('slug')
-
-            return web.json_response(status=200, data=thread)
+        thread['created'] = thread['created'].astimezone().isoformat()
+        if thread['slug'] == 'NULL':
+            thread.pop('slug')
+        return web.json_response(status=200, data=thread)

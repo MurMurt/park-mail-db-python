@@ -71,72 +71,57 @@ async def handle_get(request):
 
 @routes.get('/api/forum/{slug}/users')
 @logger
-async def handle_get(request):
-    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
-
-    ts = time.time()
+async def handle_get_users(request):
     slug = request.match_info['slug']
-    pool = request.app['pool']
     limit = request.rel_url.query.get('limit', False)
     desc = request.rel_url.query.get('desc', False)
     since = request.rel_url.query.get('since', False)
-    async with pool.acquire() as connection:
-        # print(Forum.query_get_users(slug, limit=limit, desc=desc, since=since))
-        result = await connection.fetch(Forum.query_get_users(slug, limit=limit, desc=desc, since=since))
-        if len(result) == 0:
-            result = await connection.fetch("SELECT slug FROM forum WHERE slug = '{}'".format(slug))
-            if len(result) == 0:
-                return web.json_response(status=404, data={"message": "Can't find forum by slug " + slug})
-            te = time.time()
-            if DEBUG:
-                print('%r  %2.2f ms' % ('/api/forum/{}/users'.format(slug), (te - ts) * 1000))
-            return web.json_response(status=200, data=[])
-        users = list(map(dict, list(result)))
-        te = time.time()
-        if DEBUG:
-            print('%r  %2.2f ms' % ('/api/forum/{}/users'.format(slug), (te - ts) * 1000))
-        return web.json_response(status=200, data=users)
+
+    connection_pool = request.app['pool']
+    connection = connection_pool.getconn()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cursor.execute(Forum.query_get_users(slug, limit=limit, desc=desc, since=since))
+    users = cursor.fetchall()
+
+    if not users:
+        cursor.execute("SELECT slug FROM forum WHERE slug = '{}'".format(slug))  # TODO: check
+        result = cursor.fetchone()
+        connection_pool.putconn(connection)
+        if not result:
+            return web.json_response(status=404, data={"message": "Can't find forum by slug " + slug})
+        return web.json_response(status=200, data=[])
+    connection_pool.putconn(connection)
+    return web.json_response(status=200, data=users)
 
 
 @routes.get('/api/service/status')
 @logger
 async def handle_get(request):
-    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+    connection_pool = request.app['pool']
+    connection = connection_pool.getconn()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    ts = time.time()
-    pool = request.app['pool']
-
-    async with pool.acquire() as connection:
-        result = await connection.fetch('''
+    cursor.execute('''
 			SELECT * FROM 
 				(SELECT COUNT(*) AS "forum" FROM forum) AS "f",
 				(SELECT COUNT(*) AS "thread" FROM thread) AS "t",
 				(SELECT COUNT(*) AS "post" FROM post) AS "p",
 				(SELECT COUNT(*) AS "user" FROM users) AS "u"
 		''')
-
-        result = dict(result[0])
-        te = time.time()
-        if DEBUG:
-            print('%r  %2.2f ms' % ('/api/service/status', (te - ts) * 1000))
-
-        return web.json_response(status=200, data={"forum": result['forum'],
-                                                   "post": result['post'],
-                                                   "thread": result['thread'],
-                                                   "user": result['user']})
+    result = cursor.fetchone()
+    connection_pool.putconn(connection)
+    return web.json_response(status=200, data=result)
 
 
 @routes.post('/api/service/clear')
 @logger
 async def handle_get(request):
-    return web.json_response(status=404, data={"message": "Can't find user by nickname "})
+    connection_pool = request.app['pool']
+    connection = connection_pool.getconn()
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    ts = time.time()
-    pool = request.app['pool']
-    async with pool.acquire() as connection:
-        result = await connection.fetch("TRUNCATE  post, vote, thread, forum, users;")
-        te = time.time()
-        if DEBUG:
-            print('%r  %2.2f ms' % ('/api/service/clear', (te - ts) * 1000))
-
-        return web.json_response(status=200)
+    cursor.execute("TRUNCATE  post, vote, thread, forum, users;")
+    connection.commit()
+    connection_pool.putconn(connection)
+    return web.json_response(status=200)
