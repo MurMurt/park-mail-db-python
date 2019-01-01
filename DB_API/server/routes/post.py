@@ -6,7 +6,6 @@ from .timer import logger, timeit
 import time
 
 
-
 routes = web.RouteTableDef()
 
 
@@ -49,7 +48,7 @@ async def handle_posts_create(request):
             # print('ERROR post', type(e), e)
             return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
         else:
-            await connection.fetch("UPDATE forum SET posts = posts+1 WHERE slug = '{}'".format(forum))
+            await connection.fetch("UPDATE forum SET posts = posts+{count} WHERE slug = '{forum}'".format(forum=forum, count=len(res)))
             # print(res)
             for i in range(len(res)):
                 data[i]['created'] = res[i]['created'].astimezone().isoformat()
@@ -65,20 +64,16 @@ async def handle_posts_create(request):
 @logger
 # @timeit
 async def handle_post_details(request):
-    ts = time.time()
     id = request.match_info['id']
     pool = request.app['pool']
     related = request.rel_url.query.get('related', False)
 
     async with pool.acquire() as connection:
-        ts1 = time.time()
         result = await connection.fetch(Post.query_get_post_details(id))
-        te1 = time.time()
         if len(result) == 0:
             return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
 
         post = dict(result[0])
-        result = None
 
         result = {
             "author": post['nickname'],
@@ -91,14 +86,11 @@ async def handle_post_details(request):
             "parent": post['parent'] if post['parent'] != int(id) else 0,
         }
         if not related:
-            te = time.time()
-            # print('%r  %2.2f ms' % ('handle_post_details', (te - ts) * 1000))
             return web.json_response(status=200, data={'post': result})
         else:
             user = False
             thread = False
             forum = False
-            # print('RELLLL', type(related))
             related = related.split(',')
             if 'user' in related:
                 user = {
@@ -135,9 +127,6 @@ async def handle_post_details(request):
             if forum:
                 data['forum'] = forum
 
-            te = time.time()
-            # print("QUERY:",  Post.query_get_post_details(id))
-            # print('%r  %2.2f / %2.2f ms' % ('handle_post_details', (te1 - ts1) * 1000, (te - ts) * 1000))
             return web.json_response(status=200, data=data)
 
 

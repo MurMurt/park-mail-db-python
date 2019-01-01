@@ -32,13 +32,9 @@ async def handle_posts_create(request):
             # print('ERROR', type(e), e)
             return web.json_response(status=404, data={"message": "Can't find thread by id "})
         else:
-            async with pool.acquire() as connection:
-                res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
+            # async with pool.acquire() as connection:
+            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
                 # print('RESSS', dict(res[0]))
-                data = dict(res[0])
-                data['created'] = data['created'].astimezone().isoformat()
-                # data['id'] = res[i]['id']
-                # data['forum'] = forum
-                # data['thread'] = int(thread_id)
-
-                return web.json_response(status=200, data=data)
+            data = dict(res[0])
+            data['created'] = data['created'].astimezone().isoformat()
+            return web.json_response(status=200, data=data)

@@ -2,6 +2,7 @@ import asyncpg
 from aiohttp import web
 from models.forum import Forum
 from .timer import logger
+import time
 
 routes = web.RouteTableDef()
 
@@ -32,6 +33,7 @@ async def handle_forum_create(request):
 @routes.get('/api/forum/{slug}/details')
 @logger
 async def handle_get(request):
+    ts = time.time()
     slug = request.match_info['slug']
     pool = request.app['pool']
     async with pool.acquire() as connection:
@@ -39,12 +41,14 @@ async def handle_get(request):
         if len(result) == 0:
             return web.json_response(status=404, data={"message": "Can't find user by nickname " + slug})
         forum = dict(result[0])
+        # print('%r  %2.2f ms' % (__name__, (time.time() - ts) * 1000))
         return web.json_response(status=200, data=forum)
 
 
 @routes.get('/api/forum/{slug}/users')
 @logger
 async def handle_get(request):
+    ts = time.time()
     slug = request.match_info['slug']
     pool = request.app['pool']
     limit = request.rel_url.query.get('limit', False)
@@ -60,6 +64,8 @@ async def handle_get(request):
 
             return web.json_response(status=200, data=[])
         users = list(map(dict, list(result)))
+        print('%r  %2.2f ms' % (__name__, (time.time() - ts) * 1000))
+
         return web.json_response(status=200, data=users)
 
 
@@ -87,5 +93,5 @@ async def handle_get(request):
 async def handle_get(request):
     pool = request.app['pool']
     async with pool.acquire() as connection:
-        result = await connection.fetch("TRUNCATE  post, vote, thread, forum, users;")
+        result = await connection.fetch("TRUNCATE  post, vote, thread, forum_user, forum, users;")
         return web.json_response(status=200)

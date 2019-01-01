@@ -13,9 +13,8 @@ class Forum:
 
     @staticmethod
     def query_get_forum(slug):
-        return "SELECT (SELECT count(*) FROM post JOIN thread ON post.thread_id = thread.id " \
-               "WHERE thread.forum = '{slug}') as posts, slug, " \
-               "(SELECT count(*) FROM thread WHERE thread.forum = '{slug}') as threads, title, (SELECT nickname FROM users WHERE nickname = forum.user_nick) as user " \
+        return "SELECT posts, slug, " \
+               "threads, title, (SELECT nickname FROM users WHERE nickname = forum.user_nick) as user " \
                "FROM forum " \
                "WHERE slug = '{slug}';".format(slug=slug)
     #                "JOIN users u on f.user_nick = u.nickname " \

@@ -3,6 +3,8 @@ from models.forum import Forum
 from models.post import Post
 from models.thread import Thread
 from .timer import logger
+import time
+
 routes = web.RouteTableDef()
 
 
@@ -49,6 +51,8 @@ async def handle_forum_create(request):
 @routes.get('/api/forum/{slug}/threads')
 @logger
 async def handle_get(request):
+    ts = time.time()
+
     forum_slug = request.match_info['slug']
     limit = request.rel_url.query.get('limit', 0)
     desc = request.rel_url.query.get('desc', False)
@@ -66,7 +70,7 @@ async def handle_get(request):
         data = list(map(dict, result))
         for item in data:
             item['created'] = item['created'].astimezone().isoformat()
-
+    # print('%r  %2.2f ms' % (__name__, time.time() - ts))
     return web.json_response(status=200, data=data)
 
 
@@ -77,6 +81,8 @@ async def handle_get_details(request):
     pool = request.app['pool']
 
 # TODO: rewrite
+    ts = time.time()
+
     if not thread_slug_or_id.isdigit():
         async with pool.acquire() as connection:
             res = await connection.fetch(Thread.query_get_thread_by_slug(thread_slug_or_id))
@@ -86,6 +92,7 @@ async def handle_get_details(request):
             data['created'] = data['created'].astimezone().isoformat()
 
             # print("QUERY: ", Thread.query_get_thread_by_slug(thread_slug_or_id))
+            # print('%r  %2.2f ms' % (__name__, time.time() - ts))
 
             return web.json_response(status=200, data=data)
     else:
@@ -98,6 +105,7 @@ async def handle_get_details(request):
             data['created'] = data['created'].astimezone().isoformat()
 
             # print("QUERY: ", Thread.query_get_thread_by_id(thread_id))
+            # print('%r  %2.2f ms' % (__name__, time.time() - ts))
             return web.json_response(status=200, data=data)
 
 
@@ -105,6 +113,7 @@ async def handle_get_details(request):
 @routes.get('/api/thread/{slug_or_id}/posts')
 @logger
 async def handle_get_posts(request):
+    ts = time.time()
     thread_slug_or_id = request.match_info['slug_or_id']
     limit = request.rel_url.query.get('limit', False)
     desc = request.rel_url.query.get('desc', False)
@@ -140,6 +149,10 @@ async def handle_get_posts(request):
         for item in data:
             item['created'] = item['created'].astimezone().isoformat()
         # print(len(data), len(res))
+        tm = (time.time() - ts) * 1000
+        # print('%r  %2.2f ms' % (__name__, tm))
+        # if tm > 100:
+        #     print('Q: ', Post.query_get_posts(thread_id, since, sort, desc, limit))
         return web.json_response(status=200, data=data)
 
 
