@@ -128,14 +128,18 @@ async def handle_get_posts(request):
             if len(res) == 0:
                 return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
     async with pool.acquire() as connection:
-        # print('QUERY ', Post.query_get_posts(thread_id, since, sort, desc, limit))
-        res = await connection.fetch(
-            Post.query_get_posts(thread_id, since, sort, desc, limit))
-        if len(res) == 0:
-            return web.json_response(status=200, data=[])
-        data = list(map(dict, list(res)))
+
+        result = await connection.fetch(Post.query_get_posts(thread_id, since, sort, desc, limit))
+
+
+        # print(type(result), len(result))
+        # if len(result) == 0:
+        #     return web.json_response(status=200, data=[])
+        data = list(map(dict, list(result)))
+        # print('Q:', len(result), len(data), Post.query_get_posts(thread_id, since, sort, desc, limit))
         for item in data:
             item['created'] = item['created'].astimezone().isoformat()
+        # print(len(data), len(res))
         return web.json_response(status=200, data=data)
 
 

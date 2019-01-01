@@ -26,16 +26,9 @@ async def init_app():
     return app
 
 
-
-def main():
-    # app = web.Application()
-    # app.router.add_routes(routes)
-    # app['config'] = config
-    # app['db'] = run()
-    loop = asyncio.get_event_loop()
-    app = loop.run_until_complete(init_app())
-    web.run_app(app, port=5000)
+loop = asyncio.get_event_loop()
+app = loop.run_until_complete(init_app())
 
 
 if __name__ == '__main__':
-    main()
+    web.run_app(app, port=5000)

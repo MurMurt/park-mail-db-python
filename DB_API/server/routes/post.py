@@ -62,7 +62,7 @@ async def handle_posts_create(request):
 
 @routes.get('/api/post/{id}/details', expect_handler=web.Request.json)
 @logger
-@timeit
+# @timeit
 async def handle_post_details(request):
     ts = time.time()
     id = request.match_info['id']
@@ -89,7 +89,7 @@ async def handle_post_details(request):
         }
         if not related:
             te = time.time()
-            print('%r  %2.2f ms' % ('handle_post_details', (te - ts) * 1000))
+            # print('%r  %2.2f ms' % ('handle_post_details', (te - ts) * 1000))
             return web.json_response(status=200, data={'post': result})
         else:
             user = False
@@ -133,7 +133,7 @@ async def handle_post_details(request):
                 data['forum'] = forum
 
             te = time.time()
-            print('%r  %2.2f ms' % ('handle_post_details', (te - ts) * 1000))
+            # print('%r  %2.2f ms' % ('handle_post_details', (te - ts) * 1000))
             return web.json_response(status=200, data=data)
 
 
