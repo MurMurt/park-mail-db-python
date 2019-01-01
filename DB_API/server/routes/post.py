@@ -49,6 +49,7 @@ async def handle_posts_create(request):
             # print('ERROR post', type(e), e)
             return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
         else:
+            await connection.fetch("UPDATE forum SET posts = posts+1 WHERE slug = '{}'".format(forum))
             # print(res)
             for i in range(len(res)):
                 data[i]['created'] = res[i]['created'].astimezone().isoformat()
@@ -70,7 +71,9 @@ async def handle_post_details(request):
     related = request.rel_url.query.get('related', False)
 
     async with pool.acquire() as connection:
+        ts1 = time.time()
         result = await connection.fetch(Post.query_get_post_details(id))
+        te1 = time.time()
         if len(result) == 0:
             return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
 
@@ -133,7 +136,8 @@ async def handle_post_details(request):
                 data['forum'] = forum
 
             te = time.time()
-            # print('%r  %2.2f ms' % ('handle_post_details', (te - ts) * 1000))
+            # print("QUERY:",  Post.query_get_post_details(id))
+            # print('%r  %2.2f / %2.2f ms' % ('handle_post_details', (te1 - ts1) * 1000, (te - ts) * 1000))
             return web.json_response(status=200, data=data)
 
 

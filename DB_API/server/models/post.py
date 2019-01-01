@@ -109,9 +109,9 @@ class Post:
     @staticmethod
     def query_get_post_details(post_id):
         query = '''SELECT u.about, u.email, u.fullname, u.nickname,
-                        (SELECT count(*) FROM post JOIN thread ON post.thread_id = thread.id WHERE thread.forum = f.slug ) as posts,
+                        f.posts as posts,
                         f.slug,
-                        (SELECT count(*) FROM thread WHERE thread.forum = f.slug) as threads, f.title as f_title, f.user_nick as f_nick,
+                        f.threads as threads, f.title as f_title, f.user_nick as f_nick,
                         p.author, p.created as post_created , f.slug as f_slug, p.id as post_id, p.is_edited, p.message as post_message, p.parent_id as parent, p.thread_id,
                         t.author as t_author, t.created as t_created, f.slug as forum, t.id, t.message as t_message, t.slug as t_slug, t.title as t_title, t.id as t_id, t.votes  as votes
                     FROM post p

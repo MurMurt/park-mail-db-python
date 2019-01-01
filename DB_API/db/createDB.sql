@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS forum (
   title     TEXT   NOT NULL,
   user_nick CITEXT NOT NULL,
   threads INTEGER DEFAULT 0,
+  posts INTEGER DEFAULT 0,
   FOREIGN KEY (user_nick) REFERENCES users (nickname)
 );
 
@@ -37,7 +38,7 @@ CREATE TABLE IF NOT EXISTS thread (
   title   TEXT                     NOT NULL,
   message TEXT,
   votes   INTEGER                           DEFAULT 0,
-  posts   INTEGER                           DEFAULT 0,
+--   posts   INTEGER                           DEFAULT 0,
   created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (author) REFERENCES users (nickname),
   FOREIGN KEY (forum) REFERENCES forum (slug)
@@ -129,18 +130,18 @@ CREATE TRIGGER voteInsert
   FOR EACH ROW EXECUTE PROCEDURE vote_insert();
 
 -- --
-CREATE OR REPLACE FUNCTION posts_inc()
-  RETURNS TRIGGER AS
-$BODY$
-BEGIN
-  UPDATE thread SET posts = posts + 1 WHERE id = new.thread_id;
-  RETURN new;
-END;
-$BODY$
-LANGUAGE plpgsql;
--- --
-CREATE TRIGGER postsInc
-  AFTER INSERT
-  ON post
-  FOR EACH ROW EXECUTE PROCEDURE posts_inc();
+-- CREATE OR REPLACE FUNCTION posts_inc()
+--   RETURNS TRIGGER AS
+-- $BODY$
+-- BEGIN
+--   UPDATE thread SET posts = posts + 1 WHERE id = new.thread_id;
+--   RETURN new;
+-- END;
+-- $BODY$
+-- LANGUAGE plpgsql;
+-- -- --
+-- CREATE TRIGGER postsInc
+--   AFTER INSERT
+--   ON post
+--   FOR EACH ROW EXECUTE PROCEDURE posts_inc();
 --
