@@ -48,15 +48,25 @@ async def handle_posts_create(request):
             # print('ERROR post', type(e), e)
             return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
         else:
-            await connection.fetch("UPDATE forum SET posts = posts+{count} WHERE slug = '{forum}'".format(forum=forum, count=len(res)))
-            # print(res)
-            for i in range(len(res)):
-                data[i]['created'] = res[i]['created'].astimezone().isoformat()
-                data[i]['id'] = res[i]['id']
-                data[i]['forum'] = forum
-                data[i]['thread'] = int(thread_id)
+            async with connection.transaction():
+                await connection.fetch(
+                    "UPDATE forum SET posts = posts+{count} WHERE slug = '{forum}'".format(forum=forum, count=len(res)))
+                # print(res)
 
-            return web.json_response(status=201, data=data)
+                query = "INSERT INTO forum_user (forum, user_nickname) VALUES "
+                for post in data:
+                    query += "('{}', '{}'), ".format(forum, post['author'])
+                query = query[:-2] + " ON CONFLICT DO NOTHING"
+
+                await connection.fetch(query)
+
+                for i in range(len(res )):
+                    data[i]['created'] = res[i]['created'].astimezone().isoformat()
+                    data[i]['id'] = res[i]['id']
+                    data[i]['forum'] = forum
+                    data[i]['thread'] = int(thread_id)
+
+                return web.json_response(status=201, data=data)
     # return web.json_response(status=201, data=[])
 
 
@@ -140,35 +150,21 @@ async def handle_posts_create(request):
     pool = request.app['pool']
     async with pool.acquire() as connection:
         try:
-            # print(Post.query_get_post_details(id))
             if message:
                 result = await connection.fetch("SELECT message FROM post WHERE id = {id}".format(id=id))
                 if len(result) != 0 and dict(result[0])['message'] != message:
 
-                    result = await connection.fetch("UPDATE post SET message = '{message}', is_edited = TRUE "
+                    await connection.fetch("UPDATE post SET message = '{message}', is_edited = TRUE "
                                             "WHERE id = {id}".format(message=message, id=id))
         except Exception as e:
-            # print('ERROR', type(e), e)
             return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
         else:
             async with pool.acquire() as connection:
-                # print(Post.query_get_post_details(id))
-                # print("GET POST DETAILS", Post.query_get_post_details(id))
                 result = await connection.fetch(Post.query_get_post_details(id))
                 if len(result) == 0:
                     return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
 
                 post = dict(result[0])
-                result = None
-                result = {
-                    "author": post['nickname'],
-                    "created": post['post_created'].astimezone().isoformat(),
-                    "forum": post['forum'],
-                    "id": post['post_id'],
-                    "message": post['post_message'],
-                    "thread": post['thread_id'],
-                }
-                # print('RES', post)
                 return web.json_response(status=200, data={
                     "author": post['nickname'],
                     "created": post['post_created'].astimezone().isoformat(),

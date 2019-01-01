@@ -5,6 +5,7 @@ set timezone = 'Europe/Moscow';
 DROP TABLE IF EXISTS post;
 DROP TABLE IF EXISTS vote;
 DROP TABLE IF EXISTS thread;
+DROP TABLE IF EXISTS forum_user;
 DROP TABLE IF EXISTS forum;
 DROP TABLE IF EXISTS users;
 -- --
@@ -27,8 +28,15 @@ CREATE TABLE IF NOT EXISTS forum (
   posts INTEGER DEFAULT 0,
   FOREIGN KEY (user_nick) REFERENCES users (nickname)
 );
-
 --
+-- FORUM_USER
+CREATE TABLE  IF NOT EXISTS forum_user (
+  forum CITEXT,
+  user_nickname CITEXT,
+  PRIMARY KEY (user_nickname, forum)
+);
+
+
 -- THREAD --
 CREATE TABLE IF NOT EXISTS thread (
   id      SERIAL PRIMARY KEY,
@@ -43,14 +51,16 @@ CREATE TABLE IF NOT EXISTS thread (
   FOREIGN KEY (author) REFERENCES users (nickname),
   FOREIGN KEY (forum) REFERENCES forum (slug)
 );
-CREATE INDEX thread__forum_created
-  ON thread (forum, created);
+
 -- --
 
 CREATE OR REPLACE FUNCTION threadInc()
   RETURNS TRIGGER AS
 $BODY$
 BEGIN
+  INSERT INTO forum_user (forum, user_nickname)
+  VALUES (new.forum, new.author)
+  ON CONFLICT DO NOTHING;
   UPDATE forum SET threads = threads + 1 WHERE slug = new.forum;
   RETURN new;
 END;
@@ -77,8 +87,7 @@ CREATE TABLE IF NOT EXISTS post (
   is_edited BOOLEAN                           DEFAULT FALSE
 );
 
-CREATE INDEX post__thread_id_created
-  ON post (thread_id, id, created);
+
 --
 -- --
 -- VOTE --
@@ -128,20 +137,3 @@ CREATE TRIGGER voteInsert
   AFTER INSERT
   ON vote
   FOR EACH ROW EXECUTE PROCEDURE vote_insert();
-
--- --
--- CREATE OR REPLACE FUNCTION posts_inc()
---   RETURNS TRIGGER AS
--- $BODY$
--- BEGIN
---   UPDATE thread SET posts = posts + 1 WHERE id = new.thread_id;
---   RETURN new;
--- END;
--- $BODY$
--- LANGUAGE plpgsql;
--- -- --
--- CREATE TRIGGER postsInc
---   AFTER INSERT
---   ON post
---   FOR EACH ROW EXECUTE PROCEDURE posts_inc();
---

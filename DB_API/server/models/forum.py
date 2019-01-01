@@ -27,21 +27,16 @@ class Forum:
 
     @staticmethod
     def query_get_users(slug, since, limit, desc):
-        query = '''SELECT * FROM (SELECT u.nickname, u.fullname, u.email, u.about
-                FROM users u
-                JOIN thread t ON u.nickname = t.author
-                WHERE t.forum = '{slug}'
-                UNION
-                SELECT u.nickname, u.fullname, u.email, u.about
-                FROM users u 
-                JOIN post p ON u.nickname = p.author
-                JOIN thread t ON t.id = p.thread_id WHERE t.forum = '{slug}') forum_users '''.format(slug=slug)
+        query = "SELECT u.nickname, u.fullname, u.email, u.about " \
+                "FROM forum_user f_u " \
+                "JOIN users u ON u.nickname = f_u.user_nickname " \
+                "WHERE f_u.forum = '{slug}' ".format(slug=slug)
 
         if since:
             if desc == 'true':
-                query += '''WHERE nickname COLLATE "ucs_basic" < '{}' COLLATE "ucs_basic"'''.format(since)
+                query += '''AND nickname COLLATE "ucs_basic" < '{}' COLLATE "ucs_basic"'''.format(since)
             else:
-                query += '''WHERE nickname COLLATE "ucs_basic" > '{}' COLLATE "ucs_basic"'''.format(since)
+                query += '''AND nickname COLLATE "ucs_basic" > '{}' COLLATE "ucs_basic"'''.format(since)
         query += ''' ORDER BY nickname COLLATE "ucs_basic"'''
         if desc == 'true':
             query += " DESC"

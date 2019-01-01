@@ -64,7 +64,7 @@ async def handle_get(request):
 
             return web.json_response(status=200, data=[])
         users = list(map(dict, list(result)))
-        print('%r  %2.2f ms' % (__name__, (time.time() - ts) * 1000))
+        # print('%r  %2.2f ms' % (__name__, (time.time() - ts) * 1000))
 
         return web.json_response(status=200, data=users)
 

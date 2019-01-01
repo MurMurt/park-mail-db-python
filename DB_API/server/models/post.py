@@ -77,7 +77,7 @@ class Post:
 
         elif sort == 'parent_tree':
             query = "SELECT ch.id, ch.thread_id as thread, ch.parent_id, ch.path, ch.created, ch.message, ch.author, ch.parent_id as parent, " \
-                    "(SELECT forum FROM thread WHERE id = {thread_id}) " \
+                    "t.forum " \
                     "FROM (SELECT * from post WHERE parent_id IS NULL AND " \
                     "thread_id = {thread_id} ".format(thread_id=thread_id)
 
@@ -96,7 +96,8 @@ class Post:
             if limit:
                 query += "LIMIT {}".format(limit)
             query += ") parents JOIN post ch ON parents.id = ch.id OR ch.path [1] = parents.id " \
-                     "ORDER BY parents.id "
+                     "JOIN thread t on ch.thread_id = t.id WHERE t.id = {} " \
+                     "ORDER BY parents.id ".format(thread_id)
 
             if decs == 'true':
                 query += "DESC "

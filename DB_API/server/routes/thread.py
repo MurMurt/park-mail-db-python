@@ -151,7 +151,7 @@ async def handle_get_posts(request):
         # print(len(data), len(res))
         tm = (time.time() - ts) * 1000
         # print('%r  %2.2f ms' % (__name__, tm))
-        # if tm > 100:
+        # if sort == 'parent_tree':
         #     print('Q: ', Post.query_get_posts(thread_id, since, sort, desc, limit))
         return web.json_response(status=200, data=data)
 
