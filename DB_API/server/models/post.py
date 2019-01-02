@@ -27,25 +27,22 @@ class Post:
 
     @staticmethod
     def query_get_posts(thread_id, since, sort, decs, limit):
-        query = "SELECT (SELECT forum FROM thread WHERE id = {thread_id}), " \
-                "author, created, id, message, " \
-                "CASE WHEN parent_id = id THEN NULL ELSE parent_id END as parent, thread_id as thread " \
-                "FROM post WHERE thread_id = {thread_id} ".format(
+        if sort == 'flat':
+            query = "SELECT p.author, p.created, p.id, p.message, p.parent_id as parent, p.thread_id as thread, t.forum " \
+                "FROM post p JOIN thread t on p.thread_id = t.id WHERE t.id = {thread_id} ".format(
             thread_id=thread_id)
 
-        if since and decs == 'true':
-            query += "AND id < {since} ".format(since=since)
+            if since and decs == 'true':
+                query += "AND p.id < {since} ".format(since=since)
 
-        elif since and decs != 'true':
-            query += "AND id > {since} ".format(since=since)
+            elif since and decs != 'true':
+                query += "AND p.id > {since} ".format(since=since)
 
-        if sort == 'flat':
-
-            query += "ORDER BY created "
+            query += "ORDER BY p.created "
             if decs == 'true':
                 query += "DESC, id DESC "
             else:
-                query += ", id "
+                query += ", p.id "
 
             if limit:
                 query += "LIMIT {}".format(limit)

@@ -53,9 +53,9 @@ async def handle_posts_create(request):
                     "UPDATE forum SET posts = posts+{count} WHERE slug = '{forum}'".format(forum=forum, count=len(res)))
                 # print(res)
 
-                query = "INSERT INTO forum_user (forum, user_nickname) VALUES "
+                query = "INSERT INTO forum_user (forum, user_id) VALUES "
                 for post in data:
-                    query += "('{}', '{}'), ".format(forum, post['author'])
+                    query += "('{}', (SELECT id FROM users WHERE nickname = '{}')), ".format(forum, post['author'])
                 query = query[:-2] + " ON CONFLICT DO NOTHING"
 
                 await connection.fetch(query)

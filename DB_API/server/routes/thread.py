@@ -8,7 +8,6 @@ import time
 routes = web.RouteTableDef()
 
 
-
 @routes.post('/api/forum/{slug}/create', expect_handler=web.Request.json)
 @logger
 async def handle_forum_create(request):
@@ -109,7 +108,7 @@ async def handle_get_details(request):
             return web.json_response(status=200, data=data)
 
 
-
+# TODO:
 @routes.get('/api/thread/{slug_or_id}/posts')
 @logger
 async def handle_get_posts(request):
@@ -150,9 +149,9 @@ async def handle_get_posts(request):
             item['created'] = item['created'].astimezone().isoformat()
         # print(len(data), len(res))
         tm = (time.time() - ts) * 1000
-        # print('%r  %2.2f ms' % (__name__, tm))
-        # if sort == 'parent_tree':
-        #     print('Q: ', Post.query_get_posts(thread_id, since, sort, desc, limit))
+        # print('%r  %2.2f ms' % (sort, tm))
+        # if len(data) == 0:
+        #     print('Q: ', len(data),  Post.query_get_posts(thread_id, since, sort, desc, limit))
         return web.json_response(status=200, data=data)
 
 
