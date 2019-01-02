@@ -73,34 +73,26 @@ class Post:
                 query += " LIMIT {}".format(limit)
 
         elif sort == 'parent_tree':
-            query = "SELECT ch.id, ch.thread_id as thread, ch.parent_id, ch.path, ch.created, ch.message, ch.author, ch.parent_id as parent, " \
-                    "t.forum " \
-                    "FROM (SELECT * from post WHERE parent_id IS NULL AND " \
-                    "thread_id = {thread_id} ".format(thread_id=thread_id)
+            if not limit:
+                limit = 1000
+            query = "WITH posts_by_parent AS (SELECT p.author, p.created, t.forum, p.id, p.message, p.parent_id, p.thread_id, p.path || p.id AS path, "
 
+            if decs == 'true':
+                query += " dense_rank() over (ORDER BY COALESCE(path [1], p.id) desc) AS rank "
+            else:
+                query += " dense_rank() over (ORDER BY COALESCE(path [1], p.id)) AS rank "
+
+            query += "FROM post p JOIN thread t on p.thread_id = t.id WHERE t.id = {}) " \
+                     "SELECT p.author, p.created, p.forum, p.id, p.message, p.parent_id as parent, p.thread_id as thread " \
+                     "FROM posts_by_parent p ".format(thread_id)
             if since:
-                query += "AND id "
-                if decs == 'true':
-                    query += "<"
-                else:
-                    query += ">"
-
-                query += " (SELECT parent_id FROM post WHERE id = {}) ".format(since)
-
-            query += " ORDER BY id "
-            if decs == 'true':
-                query += "DESC "
-            if limit:
-                query += "LIMIT {}".format(limit)
-            query += ") parents JOIN post ch ON parents.id = ch.id OR ch.path [1] = parents.id " \
-                     "JOIN thread t on ch.thread_id = t.id WHERE t.id = {} " \
-                     "ORDER BY parents.id ".format(thread_id)
-
-            if decs == 'true':
-                query += "DESC "
-
-            query += ", ch.path || ch.id ASC "
-
+                query += "JOIN posts_by_parent posts ON posts.id = {since} " \
+                         "WHERE p.rank <= {limit} + posts.rank " \
+                         "AND (p.rank > posts.rank OR p.rank = posts.rank " \
+                         "AND p.path > posts.path) " \
+                         "ORDER BY p.rank, p.path".format(limit=limit,  since=since)
+            else:
+                query += " WHERE p.rank <= {} ORDER BY p.rank, p.path".format(limit)
         return query
 
 

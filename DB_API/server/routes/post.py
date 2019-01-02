@@ -2,21 +2,16 @@ import asyncpg
 from aiohttp import web
 from models.post import Post
 from models.thread import Thread
-from .timer import logger, timeit
-import time
+from .timer import logger
 
 
 routes = web.RouteTableDef()
 
 
 @routes.post('/api/thread/{slug}/create', expect_handler=web.Request.json)
-@logger
+#@logger
 async def handle_posts_create(request):
     data = await request.json()
-
-    # if len(data) == 0:
-    #     return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-
     pool = request.app['pool']
     thread_slug_or_id = request.match_info['slug']
 
@@ -36,22 +31,18 @@ async def handle_posts_create(request):
             forum = res[0]['forum']
 
     async with pool.acquire() as connection:
-        # print('QUERY', Post.query_create_post(thread_id, data))
         if len(data) == 0:
             return web.json_response(status=201, data=[])
         try:
-            # print('QUERY ', Post.query_create_post(thread_id, data))
             res = await connection.fetch(Post.query_create_post(thread_id, data))
         except asyncpg.exceptions.NotNullViolationError:
             return web.json_response(status=409, data={"message": "Can't find user with id #42\n"})
-        except Exception as e:
-            # print('ERROR post', type(e), e)
+        except Exception:
             return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
         else:
             async with connection.transaction():
                 await connection.fetch(
                     "UPDATE forum SET posts = posts+{count} WHERE slug = '{forum}'".format(forum=forum, count=len(res)))
-                # print(res)
 
                 query = "INSERT INTO forum_user (forum, user_id) VALUES "
                 for post in data:
@@ -67,12 +58,10 @@ async def handle_posts_create(request):
                     data[i]['thread'] = int(thread_id)
 
                 return web.json_response(status=201, data=data)
-    # return web.json_response(status=201, data=[])
 
 
 @routes.get('/api/post/{id}/details', expect_handler=web.Request.json)
-@logger
-# @timeit
+#@logger
 async def handle_post_details(request):
     id = request.match_info['id']
     pool = request.app['pool']
@@ -141,7 +130,7 @@ async def handle_post_details(request):
 
 
 @routes.post('/api/post/{id}/details', expect_handler=web.Request.json)
-@logger
+#@logger
 async def handle_posts_create(request):
     id = request.match_info['id']
     data = await request.json()
@@ -156,7 +145,7 @@ async def handle_posts_create(request):
 
                     await connection.fetch("UPDATE post SET message = '{message}', is_edited = TRUE "
                                             "WHERE id = {id}".format(message=message, id=id))
-        except Exception as e:
+        except Exception:
             return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
         else:
             async with pool.acquire() as connection:

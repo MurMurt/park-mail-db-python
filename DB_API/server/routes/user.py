@@ -6,7 +6,7 @@ routes = web.RouteTableDef()
 
 
 @routes.post('/api/user/{nickname}/create', expect_handler=web.Request.json)
-@logger
+#@logger
 async def handle_user_create(request):
     data = await request.json()
     user = User(**data, nickname=request.match_info['nickname'])
@@ -26,7 +26,7 @@ async def handle_user_create(request):
 
 
 @routes.get('/api/user/{nickname}/profile')
-@logger
+#@logger
 async def handle_get(request):
     nickname = request.match_info['nickname']
     pool = request.app['pool']
@@ -38,23 +38,17 @@ async def handle_get(request):
 
 
 @routes.post('/api/user/{nickname}/profile', expect_handler=web.Request.json)
-@logger
+#@logger
 async def handle_user_update(request):
     data = await request.json()
     nickname = request.match_info['nickname']
-    # user = User(**data, nickname=request.match_info['nickname'])
-
     pool = request.app['pool']
 
     async with pool.acquire() as connection:
         if len(data) != 0:
             try:
-                # print(User.query_update_user(**data, nickname=nickname))
                 await connection.fetch(User.query_update_user(**data, nickname=nickname))
-            except Exception as e:
-                # TODO: handle exeptions
-                # print('ERROR', e)
-                # result = await connection.fetch(user.query_update_user())
+            except Exception:
                 return web.json_response(status=409, data={})
         result = await connection.fetch(User.query_get_user(nickname))
         if len(result) != 0:

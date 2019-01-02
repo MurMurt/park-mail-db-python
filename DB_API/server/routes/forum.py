@@ -8,7 +8,7 @@ routes = web.RouteTableDef()
 
 
 @routes.post('/api/forum/create', expect_handler=web.Request.json)
-@logger
+#@logger
 async def handle_forum_create(request):
     data = await request.json()
     forum = Forum(**data)
@@ -22,7 +22,7 @@ async def handle_forum_create(request):
             result = await connection.fetch(Forum.query_get_forum(forum.slug))
             forum = dict(result[0])
             return web.json_response(status=409, data=forum)
-        except Exception as e:
+        except Exception:
             return web.json_response(status=404, data={"message": "Can't find user by nickname " + forum.user})
     async with pool.acquire() as connection:
         result = await connection.fetch(Forum.query_get_forum(forum.slug))
@@ -31,7 +31,7 @@ async def handle_forum_create(request):
 
 
 @routes.get('/api/forum/{slug}/details')
-@logger
+#@logger
 async def handle_get_details(request):
     slug = request.match_info['slug']
     pool = request.app['pool']
@@ -44,9 +44,8 @@ async def handle_get_details(request):
 
 
 @routes.get('/api/forum/{slug}/users')
-@logger
+#@logger
 async def handle_get_users(request):
-    ts = time.time()
     slug = request.match_info['slug']
     pool = request.app['pool']
     limit = request.rel_url.query.get('limit', False)
@@ -54,7 +53,6 @@ async def handle_get_users(request):
     since = request.rel_url.query.get('since', False)
     async with pool.acquire() as connection:
         result = await connection.fetch(Forum.query_get_users(slug, limit=limit, desc=desc, since=since))
-        res_time = (time.time() - ts) * 1000
         if len(result) == 0:
             result = await connection.fetch("SELECT slug FROM forum WHERE slug = '{}'".format(slug))
             if len(result) == 0:
@@ -62,17 +60,12 @@ async def handle_get_users(request):
 
             return web.json_response(status=200, data=[])
         users = list(map(dict, list(result)))
-
-        # if res_time > 20:
-        #     print('%r  %2.2f ms' % ('handle_get_users', res_time))
-        #     print('Q:', Forum.query_get_users(slug, limit=limit, desc=desc, since=since))
         return web.json_response(status=200, data=users)
 
 
 @routes.get('/api/service/status')
-@logger
+#@logger
 async def handle_get_status(request):
-    ts = time.time()
     pool = request.app['pool']
 
     async with pool.acquire() as connection:
@@ -91,7 +84,7 @@ async def handle_get_status(request):
 
 
 @routes.post('/api/service/clear')
-@logger
+#@logger
 async def handle_get(request):
     pool = request.app['pool']
     async with pool.acquire() as connection:

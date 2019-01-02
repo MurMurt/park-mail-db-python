@@ -8,7 +8,7 @@ routes = web.RouteTableDef()
 
 
 @routes.post('/api/thread/{slug_or_id}/vote', expect_handler=web.Request.json)
-@logger
+#@logger
 async def handle_posts_create(request):
     data = await request.json()
 
@@ -26,15 +26,11 @@ async def handle_posts_create(request):
 
     async with pool.acquire() as connection:
         try:
-            # print("VOTE CREATE: ", vote.query_vote_create())
             await connection.fetch(vote.query_vote_create())
-        except Exception as e:
-            # print('ERROR', type(e), e)
+        except Exception:
             return web.json_response(status=404, data={"message": "Can't find thread by id "})
         else:
-            # async with pool.acquire() as connection:
             res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
-                # print('RESSS', dict(res[0]))
             data = dict(res[0])
             data['created'] = data['created'].astimezone().isoformat()
             return web.json_response(status=200, data=data)

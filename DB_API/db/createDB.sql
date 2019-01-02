@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS forum (
   FOREIGN KEY (user_nick) REFERENCES users (nickname)
 );
 
+CREATE INDEX forum_ind
+  ON forum (user_nick);
 
 --
 -- FORUM_USER
@@ -40,6 +42,8 @@ CREATE TABLE  IF NOT EXISTS forum_user (
   PRIMARY KEY (user_id, forum)
 );
 
+CREATE INDEX forum_user_ind
+  ON forum_user (forum, user_id);
 
 -- THREAD --
 CREATE TABLE IF NOT EXISTS thread (
@@ -57,6 +61,11 @@ CREATE TABLE IF NOT EXISTS thread (
 );
 
 -- --
+
+CREATE INDEX threads_user_ind
+  ON thread (author);
+CREATE INDEX threads_forum_ind
+  ON thread (forum);
 
 CREATE OR REPLACE FUNCTION threadInc()
   RETURNS TRIGGER AS
@@ -93,6 +102,11 @@ CREATE TABLE IF NOT EXISTS post (
 
 CREATE INDEX posts__thread_id_created_ind
   ON post (thread_id, id, created);
+
+CREATE INDEX posts_user_ind
+  ON post (author);
+CREATE INDEX posts_thread_ind
+  ON post (thread_id);
 --
 -- --
 -- VOTE --
@@ -104,6 +118,10 @@ CREATE TABLE IF NOT EXISTS vote (
   FOREIGN KEY (thread_id) REFERENCES thread (id),
   CONSTRAINT unique_votes UNIQUE (nickname, thread_id)
 );
+
+CREATE INDEX votes_user_ind
+  ON vote (thread_id, voice);
+
 -- --
 CREATE OR REPLACE FUNCTION vote_update()
   RETURNS TRIGGER AS
