@@ -15,9 +15,11 @@ CREATE TABLE IF NOT EXISTS users (
   nickname CITEXT NOT NULL,
   email    CITEXT NOT NULL UNIQUE,
   about    text,
+  id       SERIAL,
   PRIMARY KEY (nickname)
 );
 --
+CREATE INDEX users_id_ind ON users(id);
 -- --
 -- FORUM  --
 CREATE TABLE IF NOT EXISTS forum (
@@ -28,12 +30,14 @@ CREATE TABLE IF NOT EXISTS forum (
   posts INTEGER DEFAULT 0,
   FOREIGN KEY (user_nick) REFERENCES users (nickname)
 );
+
+
 --
 -- FORUM_USER
 CREATE TABLE  IF NOT EXISTS forum_user (
   forum CITEXT,
-  user_nickname CITEXT,
-  PRIMARY KEY (user_nickname, forum)
+  user_id INTEGER,
+  PRIMARY KEY (user_id, forum)
 );
 
 
@@ -58,8 +62,8 @@ CREATE OR REPLACE FUNCTION threadInc()
   RETURNS TRIGGER AS
 $BODY$
 BEGIN
-  INSERT INTO forum_user (forum, user_nickname)
-  VALUES (new.forum, new.author)
+  INSERT INTO forum_user (forum, user_id)
+  VALUES (new.forum, (SELECT id FROM users WHERE nickname = new.author))
   ON CONFLICT DO NOTHING;
   UPDATE forum SET threads = threads + 1 WHERE slug = new.forum;
   RETURN new;
@@ -87,7 +91,8 @@ CREATE TABLE IF NOT EXISTS post (
   is_edited BOOLEAN                           DEFAULT FALSE
 );
 
-
+CREATE INDEX posts__thread_id_created_ind
+  ON post (thread_id, id, created);
 --
 -- --
 -- VOTE --
