@@ -110,26 +110,24 @@ async def handle_get_posts(request):
 
     if not thread_slug_or_id.isdigit():
         async with pool.acquire() as connection:
-            res = await connection.fetch(Thread.query_get_thread_id(thread_slug_or_id))
-            if len(res) == 0:
-                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-            data = dict(res[0])
-            thread_id = data['id']
+            posts = await connection.fetch(Post.query_get_posts_by_slug(thread_slug_or_id, since, sort, desc, limit))
+            if not posts:
+                res = await connection.fetch(Thread.query_get_thread_id(thread_slug_or_id))
+                if len(res) == 0:
+                    return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
     else:
-        thread_id = thread_slug_or_id
         async with pool.acquire() as connection:
-            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
-            if len(res) == 0:
-                return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-    async with pool.acquire() as connection:
+            posts = await connection.fetch(Post.query_get_posts(thread_slug_or_id, since, sort, desc, limit))
+            if not posts:
+                res = await connection.fetch(Thread.query_get_thread_by_id(thread_slug_or_id))
+                if len(res) == 0:
+                    return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
 
-        result = await connection.fetch(Post.query_get_posts(thread_id, since, sort, desc, limit))
+    data = list(map(dict, list(posts)))
+    for item in data:
+        item['created'] = item['created'].astimezone().isoformat()
 
-        data = list(map(dict, list(result)))
-        for item in data:
-            item['created'] = item['created'].astimezone().isoformat()
-
-        return web.json_response(status=200, data=data)
+    return web.json_response(status=200, data=data)
 
 
 @routes.post('/api/thread/{slug_or_id}/details', expect_handler=web.Request.json)

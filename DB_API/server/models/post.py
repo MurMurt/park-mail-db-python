@@ -95,6 +95,75 @@ class Post:
                 query += " WHERE p.rank <= {} ORDER BY p.rank, p.path".format(limit)
         return query
 
+    @staticmethod
+    def query_get_posts_by_slug(slug, since, sort, decs, limit):
+        if sort == 'flat':
+            query = "SELECT p.author, p.created, p.id, p.message, p.parent_id as parent, p.thread_id as thread, t.forum " \
+                    "FROM post p JOIN thread t on p.thread_id = t.id WHERE t.slug = '{}' ".format(slug)
+
+            if since and decs == 'true':
+                query += "AND p.id < {since} ".format(since=since)
+
+            elif since and decs != 'true':
+                query += "AND p.id > {since} ".format(since=since)
+
+            query += "ORDER BY p.created "
+            if decs == 'true':
+                query += "DESC, id DESC "
+            else:
+                query += ", p.id "
+
+            if limit:
+                query += "LIMIT {}".format(limit)
+
+        elif sort == 'tree':
+            query = "SELECT p.author, p.created, t.forum," \
+                    " p.id, p.message, p.parent_id as parent, p.thread_id as thread FROM post p " \
+                    "JOIN thread t ON t.id = p.thread_id "
+
+            if since and decs == 'true':
+                query += " JOIN post ON post.id = {since} WHERE p.path || p.id < post.path || post.id ".format(
+                    since=since)
+
+            elif since and decs != 'true':
+                query += " JOIN post ON post.id = {since} WHERE p.path || p.id > post.path || post.id ".format(
+                    since=since)
+
+            if since:
+                query += " AND t.slug = '{}' ORDER BY p.path || p.id ".format(slug)
+
+            else:
+                query += " WHERE t.slug = '{}' ORDER BY p.path || p.id ".format(slug)
+
+            if decs == 'true':
+                query += " DESC "
+
+            if limit:
+                query += " LIMIT {}".format(limit)
+
+        elif sort == 'parent_tree':
+            if not limit:
+                limit = 1000
+            query = "WITH posts_by_parent AS (SELECT p.author, p.created, t.forum, p.id, p.message, p.parent_id, p.thread_id, p.path || p.id AS path, "
+
+            if decs == 'true':
+                query += " dense_rank() over (ORDER BY COALESCE(path [1], p.id) desc) AS rank "
+            else:
+                query += " dense_rank() over (ORDER BY COALESCE(path [1], p.id)) AS rank "
+
+            query += "FROM post p JOIN thread t on p.thread_id = t.id WHERE t.slug = '{}') " \
+                     "SELECT p.author, p.created, p.forum, p.id, p.message, p.parent_id as parent, p.thread_id as thread " \
+                     "FROM posts_by_parent p ".format(slug)
+            if since:
+                query += "JOIN posts_by_parent posts ON posts.id = {since} " \
+                         "WHERE p.rank <= {limit} + posts.rank " \
+                         "AND (p.rank > posts.rank OR p.rank = posts.rank " \
+                         "AND p.path > posts.path) " \
+                         "ORDER BY p.rank, p.path".format(limit=limit, since=since)
+            else:
+                query += " WHERE p.rank <= {} ORDER BY p.rank, p.path".format(limit)
+        return query
+
 
     @staticmethod
     def query_get_post_details(post_id):

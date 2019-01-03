@@ -16,7 +16,6 @@ async def handle_forum_create(request):
     pool = request.app['pool']
     async with pool.acquire() as connection:
         try:
-            # print('QUERY', forum.query_create_forum())
             await connection.fetch(forum.query_create_forum())
         except asyncpg.exceptions.UniqueViolationError as e:
             result = await connection.fetch(Forum.query_get_forum(forum.slug))
@@ -69,13 +68,8 @@ async def handle_get_status(request):
     pool = request.app['pool']
 
     async with pool.acquire() as connection:
-        result = await connection.fetch('''
-			SELECT * FROM 
-				(SELECT COUNT(*) AS "forum" FROM forum) AS "f",
-				(SELECT COUNT(*) AS "thread" FROM thread) AS "t",
-				(SELECT COUNT(*) AS "post" FROM post) AS "p",
-				(SELECT COUNT(*) AS "user" FROM users) AS "u"
-		''')
+        result = await connection.fetch("SELECT COUNT(slug) as forum, SUM(threads) as thread, SUM(posts) as post, "
+                                        "(SELECT COUNT(id) AS user FROM users) FROM forum")
         result = dict(result[0])
         return web.json_response(status=200, data={"forum": result['forum'],
                                                    "post": result['post'],
