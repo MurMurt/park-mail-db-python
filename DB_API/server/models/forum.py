@@ -17,7 +17,6 @@ class Forum:
                "threads, title, user_nick as user " \
                "FROM forum " \
                "WHERE slug = '{slug}';".format(slug=slug)
-    #                "JOIN users u on f.user_nick = u.nickname " \
 
     @staticmethod
     def query_get_forum_slug(slug):
