@@ -119,7 +119,7 @@ async def handle_get_posts(request):
         async with pool.acquire() as connection:
             posts = await connection.fetch(Post.query_get_posts(thread_slug_or_id, since, sort, desc, limit))
             if not posts:
-                res = await connection.fetch(Thread.query_get_thread_by_id(thread_slug_or_id))
+                res = await connection.fetch(Thread.query_get_thread_forum(thread_slug_or_id))
                 if len(res) == 0:
                     return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
 
