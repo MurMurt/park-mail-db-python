@@ -54,14 +54,14 @@ async def handle_get(request):
 
     pool = request.app['pool']
     async with pool.acquire() as connection:
-        result = await connection.fetch(Thread.query_get_threads(forum_slug, limit, desc, since))
-        if len(result) == 0:
-            result = await connection.fetch(Forum.query_get_forum(forum_slug))
-            if len(result) == 0:
+        threads = await connection.fetch(Thread.query_get_threads(forum_slug, limit, desc, since))
+        if not threads:
+            forum = await connection.fetch(Forum.query_get_forum(forum_slug))
+            if not forum:
                 return web.json_response(status=404, data={"message": "Can't find forum by slug " + forum_slug})
             return web.json_response(status=200, data=[])
 
-        data = list(map(dict, result))
+        data = list(map(dict, threads))
         for item in data:
             item['created'] = item['created'].astimezone().isoformat()
     return web.json_response(status=200, data=data)
@@ -77,20 +77,20 @@ async def handle_get_details(request):
 
     if not thread_slug_or_id.isdigit():
         async with pool.acquire() as connection:
-            res = await connection.fetch(Thread.query_get_thread_by_slug(thread_slug_or_id))
-            if len(res) == 0:
+            thread = await connection.fetchrow(Thread.query_get_thread_by_slug(thread_slug_or_id))
+            if not thread:
                 return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-            data = dict(res[0])
+            data = dict(thread)
             data['created'] = data['created'].astimezone().isoformat()
 
             return web.json_response(status=200, data=data)
     else:
         thread_id = thread_slug_or_id
         async with pool.acquire() as connection:
-            res = await connection.fetch(Thread.query_get_thread_by_id(thread_id))
-            if len(res) == 0:
+            thread = await connection.fetchrow(Thread.query_get_thread_by_id(thread_id))
+            if not thread:
                 return web.json_response(status=404, data={"message": "Can't find user with id #42\n"})
-            data = dict(res[0])
+            data = dict(thread)
             data['created'] = data['created'].astimezone().isoformat()
 
             return web.json_response(status=200, data=data)

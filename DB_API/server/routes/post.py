@@ -68,11 +68,11 @@ async def handle_post_details(request):
     related = request.rel_url.query.get('related', False)
 
     async with pool.acquire() as connection:
-        result = await connection.fetch(Post.query_get_post_details(id))
-        if len(result) == 0:
+        post = await connection.fetchrow(Post.query_get_post_details(id))
+        if not post:
             return web.json_response(status=404, data={"message": "Can't find post by slug " + str(id)})
 
-        post = dict(result[0])
+        post = dict(post)
 
         result = {
             "author": post['nickname'],

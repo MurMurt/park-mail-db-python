@@ -35,10 +35,10 @@ async def handle_get_details(request):
     slug = request.match_info['slug']
     pool = request.app['pool']
     async with pool.acquire() as connection:
-        result = await connection.fetch(Forum.query_get_forum(slug))
-        if len(result) == 0:
+        forum = await connection.fetchrow(Forum.query_get_forum(slug))
+        if not forum:
             return web.json_response(status=404, data={"message": "Can't find user by nickname " + slug})
-        forum = dict(result[0])
+        forum = dict(forum)
         return web.json_response(status=200, data=forum)
 
 
@@ -53,8 +53,8 @@ async def handle_get_users(request):
     async with pool.acquire() as connection:
         result = await connection.fetch(Forum.query_get_users(slug, limit=limit, desc=desc, since=since))
         if len(result) == 0:
-            result = await connection.fetch("SELECT slug FROM forum WHERE slug = '{}'".format(slug))
-            if len(result) == 0:
+            result = await connection.fetchrow("SELECT slug FROM forum WHERE slug = '{}'".format(slug))
+            if not result:
                 return web.json_response(status=404, data={"message": "Can't find forum by slug " + slug})
 
             return web.json_response(status=200, data=[])
