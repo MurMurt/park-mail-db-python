@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS forum (
 );
 
 CREATE INDEX forum_ind
-  ON forum (user_nick);
+  ON forum USING hash (user_nick);
 
 --
 -- FORUM_USER
@@ -63,9 +63,9 @@ CREATE TABLE IF NOT EXISTS thread (
 -- --
 
 CREATE INDEX threads_user_ind
-  ON thread (author);
+  ON thread USING hash (author);
 CREATE INDEX threads_forum_ind
-  ON thread (forum);
+  ON thread USING hash (forum);
 
 CREATE OR REPLACE FUNCTION threadInc()
   RETURNS TRIGGER AS
